@@ -1,2 +1,6 @@
 node_modules/
 .DS_Store
+.idea/
+
+# throwaway prototypes (see docs/DESIGN.md, P1)
+prototypes/
