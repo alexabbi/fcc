@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>fcc · Task flowchart</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <span class="brand">fcc</span>
+      <select id="task-select" aria-label="Task"></select>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" data-view="story" aria-selected="true">Story</button>
+        <button type="button" role="tab" data-view="structure" aria-selected="false">Structure</button>
+      </div>
+      <div id="stats" class="stats"></div>
+      <div class="spacer"></div>
+      <label class="toggle" id="context-toggle"><input type="checkbox" id="show-context" checked /> Context</label>
+      <button id="fit" type="button" title="Fit to screen (F)">Fit</button>
+    </header>
+    <main>
+      <section id="story-view" class="story-view"><div id="story" class="story"></div></section>
+      <section id="structure-view" class="canvas" hidden>
+        <div id="graph"></div>
+        <div id="overlay" class="overlay" hidden></div>
+        <div class="legend" aria-label="Legend">
+          <span><i class="sw added"></i>added</span>
+          <span><i class="sw modified"></i>modified</span>
+          <span><i class="sw removed"></i>removed</span>
+          <span><i class="sw context"></i>context</span>
+          <span class="sep"></span>
+          <span><i class="ln"></i>call</span>
+          <span><i class="ln dotted"></i>reference</span>
+          <span><i class="ln dashed removed"></i>removed</span>
+        </div>
+      </section>
+      <aside id="panel" class="panel"></aside>
+    </main>
+    <script src="/vendor/cytoscape.js"></script>
+    <script src="/vendor/elk.js"></script>
+    <script src="/vendor/cytoscape-elk.js"></script>
+    <script src="/story.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

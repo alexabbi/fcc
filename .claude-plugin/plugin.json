@@ -1,0 +1,10 @@
+{
+  "name": "fcc",
+  "version": "0.1.0",
+  "description": "Flowchart for Claude Code: after each task, a symbol-level graph of what Claude changed.",
+  "author": {
+    "name": "Alex Abbi"
+  },
+  "license": "MIT",
+  "keywords": ["diff", "flowchart", "review", "visualization", "typescript"]
+}
