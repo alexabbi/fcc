@@ -121,6 +121,20 @@ export function readBlobs(repoRoot: string, shas: string[]): Map<string, string>
   return result;
 }
 
+/** Zero-context diff of the whole change between two trees. */
+export function treeDiff(repoRoot: string, before: string, after: string): string {
+  return git(repoRoot, ["diff", "-M", "-U0", "--no-color", "--no-ext-diff", before, after]);
+}
+
+/** Current HEAD commit, or undefined in a repo without commits. */
+export function headCommit(repoRoot: string): string | undefined {
+  try {
+    return git(repoRoot, ["rev-parse", "--verify", "-q", "HEAD"]).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Unified diff of one file between two trees. */
 export function fileDiff(repoRoot: string, before: string, after: string, change: FileChange): string {
   const paths = change.oldPath ? [change.oldPath, change.path] : [change.path];

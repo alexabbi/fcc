@@ -5,7 +5,8 @@ plain-language account of what changed, so the developer can review the work
 while reading less and less code.
 
 This records the decisions taken in the design session (Q1–Q25), the
-deviations found while building M1, and the revision after prototype P1.
+deviations found while building M1, the revision after prototype P1, and the
+decisions on the development history (S1–S14).
 
 ## Goal and levels
 
@@ -48,13 +49,74 @@ reading less code only works if the tool says where code *should* be read.
 | Q16 | Removals | Graph built on both before and after versions; removed nodes/edges shown dashed red. |
 | Q17 | Huge diffs | Above a threshold, start collapsed at cluster level (M3). |
 | Q18 | LLM role | **Revised after P1.** Writes levels 0–1: story, request coverage, what to verify, behavior flowchart. May create behavior steps, but each step must be anchored to level-2 ids; output is schema-validated, unknown anchors dropped, links graded grounded/inferred. |
-| Q19 | Storage | `~/.claude/flow/`, nothing written in the user's repo; 30-day retention (M3). |
-| Q20 | `/flow` windows | Per-turn diagrams suppressed inside a window; `SessionEnd` closes open windows (M3). |
+| Q19 | Storage | **Revised by S4/S6.** Full task data cached in `~/.claude/flow/`, kept forever (no retention); the history record lives in the repo. |
+| Q20 | `/flow` windows | **Superseded by S2/S14.** Tasks stay per turn; `/flow start "name" … end` names the feature they are grouped under; `SessionEnd` closes an open window. |
 | Q21 | Config | `~/.claude/flow.json` + `<repo>/.claude/flow.json` overrides (M3). |
-| Q22 | Roadmap | **Revised after P1.** M1 core loop · M2 levels 0–1 (narrative + anchored behavior flow) and a page that opens on the story · M3 big diffs, `/flow start|end`, config, retention, Mermaid export, Nx project graph, publishing. |
+| Q22 | Roadmap | **Revised after S1–S14.** M1 core loop · M2 levels 0–1 (narrative + anchored behavior flow) · M3 development history (S1–S14), including the request fix of S13 · M4 big diffs, config file, Mermaid export, Nx project graph, publishing. |
 | Q23 | Location | This repo. |
 | Q24 | Server security | Bound to 127.0.0.1, random per-run token, Host-header check. |
 | Q25 | Tests | Fixture git repos + end-to-end hook tests; the LLM is tested only on schema. |
+
+## Development history (M3)
+
+The history is a personal memory of the project — what was done, when and
+why — and later context for Claude itself (S1). It lives in the repository,
+next to the code it explains.
+
+| # | Topic | Decision |
+|---|---|---|
+| S1 | Purpose | Personal memory of the project; later, memory Claude can consult. |
+| S2 | Unit | The task (one Claude turn) is recorded; the view groups tasks. |
+| S3 | Coverage | Only work done through Claude; manual commits are out of scope. |
+| S4 | Retention | Keep everything, forever (replaces the 30-day retention of Q19). |
+| S5 | Git link | Computed, never written to git: each task is "included in <commit>", "partially included", "not committed yet" or "never committed". |
+| — | Backfill | No reconstruction of tasks from before the plugin was installed. |
+| S6 | What goes in the repo | A light record: request, intent, story, flow, symbol references, task metadata. Diffs and the full graph stay in the local cache; for committed tasks they can be rebuilt from the commit. |
+| S7 | Format | One Markdown file per task (story, asks, verify, Mermaid flowchart — readable anywhere) plus a JSON sidecar for the viewer. |
+| S8 | Location | `docs/flow/` by default, configurable. |
+| S9 | Who commits | The developer, together with the code: fcc writes the record in the working tree; fcc excludes its own directory from the analysis. |
+| S10 | Privacy | The repo gets the intent summary, never the raw messages (those stay in the local cache); `/flow private` keeps a task out of the repo entirely. |
+| S11 | Browsing | Project timeline and full-text search first; per-code-area view next; periodic digests later. |
+| S12 | Access | A "History" tab in the viewer, opened with `/flow` from Claude Code, reading `docs/flow/` (so teammates' tasks appear after a pull). The Markdown files are readable without fcc, in the IDE and on GitHub. No shared index file (merge conflicts). |
+| S13 | What "the request" is | All user messages since the previous task, read from the Claude Code transcript, plus an intent summary written by the model: goal, decisions, rejected alternatives. Also fixes M2, which judged the asks against the last message only (after a grilling session that is just "ok, go"). |
+| S14 | Grouping | Explicit features via `/flow start "name"` … `/flow end`; otherwise tasks included in the same commit form a group titled by the commit message; uncommitted tasks group by session. No LLM clustering (unstable groups). |
+
+Checks done before building:
+
+- **Transcript**: user messages, skill invocations (`/name args`) and the
+  assistant's prose are all there; tool calls/results (`tool_result`), skill
+  bodies (`isMeta`) and subagents (`isSidechain`) are filtered out. Finding:
+  user messages alone are not enough ("I accept your recommendations" means
+  nothing without the recommendations), so the assistant's text is included.
+- **Mermaid in PhpStorm**: rendered by the Markdown preview, the Mermaid
+  plugin is bundled and enabled by default.
+- **Task ↔ commit**: matched by content (hashes of meaningful added/removed
+  lines, path-insensitive), tested on plain commits, squash, rebase, partial
+  rewrites and discarded work.
+
+How it works:
+
+- **Conversation** (`src/history/conversation.ts`): messages after the end of
+  the session's previous task, up to this task's end. Budgets: 4k chars per
+  user message, 3k per assistant message (10k for the last one, usually the
+  plan being approved), 60k total, trimming the oldest assistant text first.
+  Kept in the local cache only.
+- **Record** (`src/history/record.ts`): written after the story is ready,
+  `docs/flow/<yyyy-mm>/<task id>-<slug>.{md,json}`. The analysis ignores this
+  directory, so a record written during the next task never shows up as a
+  change. Without a story (LLM off or failed) the record is factual only
+  ("N files changed"), never the raw prompt.
+- **Commit link** (`src/history/commits.ts`): one `git log -p -U0` of the
+  current branch since the oldest task; included ≥ 80 % of the task's lines,
+  partial ≥ 20 %, otherwise uncommitted (still in the work tree) or
+  discarded. Computed when the History tab loads, never stored.
+- **`/flow`** is a plugin skill (`skills/flow/SKILL.md`) that runs
+  `fcc flow --session ${CLAUDE_SESSION_ID} --cwd ${CLAUDE_PROJECT_DIR}` and
+  relays the output. Feature and privacy are per-session state
+  (`~/.claude/flow/sessions/<id>/meta.json`).
+- **Teammates' tasks**: records pulled from the repo appear in the timeline;
+  opening one rebuilds its story from the record (no diffs or call edges:
+  those stay in the author's cache, and git has the code).
 
 ## Architecture
 
@@ -153,4 +215,10 @@ code? Tried on the "discount codes" demo task with Haiku and Sonnet via
 - The narrative is only as good as what it sees: diffs above ~120k characters
   are shortened, and it cannot know about runtime behavior the static graph
   misses (see above), so its flow may be coarser there.
-- No retention, config file, big-diff collapsing or `/flow` yet (M3).
+- History: commit matching looks at the current branch only; a task
+  committed on an unmerged branch shows as "not committed yet". Lines that
+  are very common (`return true;`) can inflate the match slightly.
+- History: tasks made before M3 (or before installing the plugin) are not
+  reconstructed (by decision).
+- No config file, big-diff collapsing, Mermaid export of the structure graph
+  or Nx project graph yet (M4).

@@ -5,7 +5,8 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fccHome, serverInfoPath } from "../paths.ts";
-import { listTasks, readGraph } from "../tasks.ts";
+import { buildHistory, recordToGraph } from "../history/timeline.ts";
+import { listRepos, listTasks, readGraph } from "../tasks.ts";
 import { readServerInfo, type ServerInfo } from "./launcher.ts";
 
 const DEFAULT_PORT = 47291;
@@ -25,6 +26,7 @@ function staticFiles(): Record<string, string> {
     "/": path.join(web, "index.html"),
     "/app.js": path.join(web, "app.js"),
     "/story.js": path.join(web, "story.js"),
+    "/history.js": path.join(web, "history.js"),
     "/app.css": path.join(web, "app.css"),
     "/vendor/cytoscape.js": vendor("cytoscape.js", "cytoscape/dist/cytoscape.min.js"),
     "/vendor/elk.js": vendor("elk.js", "elkjs/lib/elk.bundled.js"),
@@ -101,9 +103,24 @@ function handle(req: IncomingMessage, res: ServerResponse, token: string, port: 
   if (url.pathname === "/health") return sendJson(res, { ok: true });
   if (url.pathname === "/api/tasks") return sendJson(res, listTasks());
 
+  if (url.pathname === "/api/repos") return sendJson(res, listRepos());
+
+  const h = /^\/api\/history\/([^/]+)$/.exec(url.pathname);
+  if (h) {
+    const repo = listRepos().find((r) => r.repoId === decodeURIComponent(h[1]!));
+    return repo ? sendJson(res, buildHistory(repo.repoId, repo.root)) : send(res, 404, "text/plain", "unknown repo");
+  }
+
   const m = /^\/api\/tasks\/([^/]+)\/([^/]+)$/.exec(url.pathname);
   if (m) {
-    const graph = readGraph(decodeURIComponent(m[1]!), decodeURIComponent(m[2]!));
+    const repoId = decodeURIComponent(m[1]!);
+    const taskId = decodeURIComponent(m[2]!);
+    // Not in the local cache (a teammate's task, after a pull): rebuild it from the repo record.
+    let graph = readGraph(repoId, taskId);
+    if (!graph) {
+      const repo = listRepos().find((r) => r.repoId === repoId);
+      if (repo) graph = recordToGraph(repoId, repo.root, taskId);
+    }
     return graph ? sendJson(res, graph) : send(res, 404, "text/plain", "task not found");
   }
 

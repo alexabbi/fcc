@@ -14,6 +14,12 @@ page that tells you **what changed without making you read the code**:
 - **Structure** — the symbol graph (functions, methods, classes added,
   modified or removed, the calls between them, their callers as context) and,
   one click further, the diff of each symbol.
+- **History** — the development history of the project: every task is also
+  written to `docs/flow/` in your repo (a Markdown file with the *why* —
+  goal, decisions, rejected alternatives — the story and a Mermaid flowchart,
+  plus a JSON sidecar). Commit it with the code it explains. The History tab
+  shows the timeline grouped by feature or commit, tells you which tasks were
+  committed, partly committed or discarded, and searches everything.
 
 ```
 fcc: flowchart of 5 files → http://127.0.0.1:47291/?t=…#/shop-app-1a2b3c4d/20260922-154414-1187
@@ -35,11 +41,21 @@ claude --plugin-dir /path/to/fcc
 ```
 
 Then ask Claude to change some code. When it finishes, open the printed link.
-To reopen the viewer later:
 
-```bash
-node /path/to/fcc/dist/fcc.mjs open
-```
+In Claude Code:
+
+| Command | Effect |
+|---|---|
+| `/flow` | open the history of the current project |
+| `/flow start "Discount codes"` | group the next tasks under a feature |
+| `/flow end` | stop grouping |
+| `/flow private` | keep this session's tasks out of the repo (the last one is withdrawn) |
+| `/flow public` | write them to the repo again |
+
+The story of a task is written from the whole conversation that led to it,
+not just the last message: after a long discussion ending in "ok, go", the
+*why* still contains the decisions you agreed on. Your raw messages stay on
+your machine; only the summary goes into the repo.
 
 ## How it works
 
@@ -62,7 +78,7 @@ Sources run directly on Node ≥ 22.18 (`node bin/fcc.ts …`); the bundle runs 
 Node ≥ 18. Useful environment variables: `FCC_LLM` (`claude` default, `api`
 to use the Anthropic API via the SDK, `off`), `FCC_MODEL` (`sonnet` default,
 `haiku`, `opus` or a model id), `FCC_HOME` (state dir), `FCC_PORT`,
-`FCC_IDLE_MINUTES` (server auto-shutdown, default 30), `FCC_SYNC=1` (analyze
+`FCC_HISTORY_DIR` (default `docs/flow`), `FCC_IDLE_MINUTES` (server auto-shutdown, default 30), `FCC_SYNC=1` (analyze
 inside the Stop hook), `FCC_NO_SERVER=1`.
 
 Errors from hooks and background processes go to `~/.claude/flow/fcc.log`;

@@ -11,6 +11,7 @@
       <span class="brand">fcc</span>
       <select id="task-select" aria-label="Task"></select>
       <div class="tabs" role="tablist">
+        <button type="button" role="tab" data-view="history" aria-selected="false">History</button>
         <button type="button" role="tab" data-view="story" aria-selected="true">Story</button>
         <button type="button" role="tab" data-view="structure" aria-selected="false">Structure</button>
       </div>
@@ -20,6 +21,7 @@
       <button id="fit" type="button" title="Fit to screen (F)">Fit</button>
     </header>
     <main>
+      <section id="history-view" class="story-view" hidden><div id="history" class="story"></div></section>
       <section id="story-view" class="story-view"><div id="story" class="story"></div></section>
       <section id="structure-view" class="canvas" hidden>
         <div id="graph"></div>
@@ -41,6 +43,7 @@
     <script src="/vendor/elk.js"></script>
     <script src="/vendor/cytoscape-elk.js"></script>
     <script src="/story.js"></script>
+    <script src="/history.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

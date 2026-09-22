@@ -35,7 +35,7 @@ await build({
 
 const web = new URL("web/", dist);
 mkdirSync(new URL("vendor/", web), { recursive: true });
-for (const f of ["index.html", "app.js", "story.js", "app.css"]) cpSync(new URL(`../src/web/${f}`, import.meta.url), new URL(f, web));
+for (const f of ["index.html", "app.js", "story.js", "history.js", "app.css"]) cpSync(new URL(`../src/web/${f}`, import.meta.url), new URL(f, web));
 const vendor = {
   "cytoscape.js": "cytoscape/dist/cytoscape.min.js",
   "elk.js": "elkjs/lib/elk.bundled.js",

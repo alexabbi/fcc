@@ -67,8 +67,9 @@ describe("hooks end to end", () => {
     assert.ok(ids.includes("sym:src/a.ts#b"));
     const notes = g.nodes.find((n) => n.id === "file:notes.md");
     assert.equal(notes?.kind === "file" && notes.attribution, "other");
-    // the real index is untouched: nothing got staged
-    assert.deepEqual(repo.git("status", "--porcelain").split("\n").filter(Boolean).sort(), [" M src/a.ts", "?? notes.md"]);
+    // the real index is untouched (nothing staged); the history record waits in the work tree (S9)
+    assert.deepEqual(repo.git("status", "--porcelain").split("\n").filter(Boolean).sort(), [" M src/a.ts", "?? docs/", "?? notes.md"]);
+    assert.match(g.recordPath ?? "", /^docs\/flow\/\d{4}-\d{2}\/.+\.md$/);
   });
 
   test("a turn without tool calls produces nothing", () => {

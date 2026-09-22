@@ -42,6 +42,8 @@ function renderStory() {
   const d = n.data;
   box.append(el("p", "level", "Level 0 · Story"));
   box.append(el("h1", "headline", d.headline));
+  const why = intentBlock(d.intent);
+  if (why) box.append(why);
   box.append(el("p", "story-text", d.story));
 
   const cols = el("div", "cols");
@@ -88,6 +90,26 @@ function renderStory() {
   box.append(flow);
   box.append(provenance(n));
   renderFlow(d.flow);
+}
+
+/** "Why": the goal, decisions and rejected alternatives from the conversation (S13). */
+function intentBlock(intent) {
+  if (!intent || (!intent.goal && !intent.decisions?.length && !intent.rejected?.length)) return null;
+  const box = el("div", "why");
+  box.append(el("p", "level", "Why"));
+  if (intent.goal) box.append(el("p", "why-goal", intent.goal));
+  const list = (title, items, cls) => {
+    if (!items?.length) return;
+    const d = el("div", `why-list ${cls}`);
+    d.append(el("span", "why-title", title));
+    const ul = el("ul");
+    for (const i of items) ul.append(el("li", "", i));
+    d.append(ul);
+    box.append(d);
+  };
+  list("Decided", intent.decisions, "decided");
+  list("Rejected", intent.rejected, "rejected");
+  return box;
 }
 
 function storyNote(title, text, withStructureLink, cls = "") {
@@ -276,6 +298,7 @@ function showAnchors({ title, detail, anchors, status, kind }) {
     where.append(toGraph);
     sec.append(where);
     if (n.diff) sec.append(renderDiff(n.diff));
+    else if (!state.graph.task.before) sec.append(el("p", "note", "Diff not in this machine's cache (task recorded elsewhere): see its commit."));
     else sec.append(el("p", "note", "Unchanged: shown as context."));
     p.append(sec);
   }

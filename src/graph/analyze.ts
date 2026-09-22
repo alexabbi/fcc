@@ -2,6 +2,7 @@ import path from "node:path";
 import { structuredPatch } from "diff";
 import { ts } from "ts-morph";
 import { diffTrees, fileDiff, listTree, readBlobs, type FileChange, type TreeEntry } from "../git.ts";
+import { historyDir } from "../history/record.ts";
 import { isCodeFile, isExcludedChange, isProgramFile } from "./filters.ts";
 import { CodeVersion, type SymbolEdge, type SymbolInfo } from "./symbols.ts";
 import type { EdgeKind, FileNode, FlowEdge, FlowGraph, FlowNode, NodeStatus, PackageNode, SymbolNode, TaskInfo } from "./types.ts";
@@ -19,7 +20,9 @@ export function analyzeTask(task: TaskInfo): AnalysisResult {
   const warnings: string[] = [];
   const claudeFiles = new Set(task.claudeFiles);
 
-  const allChanges = diffTrees(repoRoot, before, after);
+  // fcc's own history records are written while the next task may be running (S9).
+  const ownDir = `${historyDir()}/`;
+  const allChanges = diffTrees(repoRoot, before, after).filter((c) => !c.path.startsWith(ownDir));
   const changes = allChanges.filter((c) => !isExcludedChange(c.path));
   if (allChanges.length > changes.length) {
     warnings.push(`${allChanges.length - changes.length} file(s) hidden by exclude patterns (lockfiles, build output, generated files).`);

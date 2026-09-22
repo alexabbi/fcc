@@ -1,18 +1,18 @@
 import { randomBytes } from "node:crypto";
-import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { findRepoRoot, snapshotWorkTree } from "./git.ts";
+import { findRepoRoot, headCommit, snapshotWorkTree } from "./git.ts";
 import type { TaskInfo } from "./graph/types.ts";
-import { fccHome, repoIdFor } from "./paths.ts";
+import { repoIdFor } from "./paths.ts";
 import { ensureServer, taskUrl } from "./server/launcher.ts";
 import { spawnSelfDetached } from "./spawn.ts";
-import { beginTask, endTask, readCurrentTask, readToolRecords, recordTool } from "./session.ts";
-import { writeGraph } from "./tasks.ts";
+import { beginTask, endTask, readCurrentTask, readSessionMeta, readToolRecords, recordTool, updateSessionMeta } from "./session.ts";
+import { registerRepo, writeGraph } from "./tasks.ts";
 
 /** Subset of the JSON Claude Code sends to hooks on stdin. */
 export interface HookInput {
   session_id: string;
   cwd: string;
+  transcript_path?: string;
   hook_event_name?: string;
   prompt?: string;
   user_prompt?: string;
@@ -37,6 +37,7 @@ export function onPrompt(input: HookInput): HookOutput {
   beginTask(input.session_id, {
     repoRoot,
     beforeTree: snapshotWorkTree(repoRoot),
+    baseCommit: headCommit(repoRoot),
     startedAt: new Date().toISOString(),
     prompt: input.prompt ?? input.user_prompt ?? "",
   });
@@ -71,6 +72,8 @@ export async function onStop(input: HookInput): Promise<HookOutput> {
   if (afterTree === current.beforeTree) return {};
 
   const repoId = repoIdFor(current.repoRoot);
+  registerRepo(repoId, current.repoRoot);
+  const meta = readSessionMeta(input.session_id);
   const claudeFiles = new Set<string>();
   for (const r of records) {
     for (const f of r.files) {
@@ -90,7 +93,14 @@ export async function onStop(input: HookInput): Promise<HookOutput> {
     after: afterTree,
     claudeFiles: [...claudeFiles].sort(),
     usedBash: records.some((r) => r.tool === "Bash"),
+    ...(input.transcript_path ? { transcriptPath: input.transcript_path } : {}),
+    ...(meta.lastTaskEndedAt ? { conversationSince: meta.lastTaskEndedAt } : {}),
+    ...(meta.feature ? { feature: meta.feature } : {}),
+    ...(meta.private ? { private: true } : {}),
+    ...(current.baseCommit ? { baseCommit: current.baseCommit } : {}),
   };
+  // The next task's conversation starts after this one (S13).
+  updateSessionMeta(input.session_id, { lastTaskEndedAt: task.endedAt, lastTaskId: task.id, lastRepoId: repoId });
   writeGraph({ version: 1, task, status: "pending", nodes: [], edges: [], warnings: [] });
 
   if (process.env.FCC_SYNC === "1") {
@@ -113,15 +123,4 @@ function newTaskId(): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
   return `${stamp}-${randomBytes(2).toString("hex")}`;
-}
-
-/** Hooks must never break the user's session: log and swallow. */
-export function logError(context: string, err: unknown): void {
-  try {
-    mkdirSync(fccHome(), { recursive: true });
-    const msg = err instanceof Error ? (err.stack ?? err.message) : String(err);
-    appendFileSync(path.join(fccHome(), "fcc.log"), `${new Date().toISOString()} [${context}] ${msg}\n`);
-  } catch {
-    // nothing left to do
-  }
 }

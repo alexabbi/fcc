@@ -66,6 +66,11 @@ export function validateNarrative(
 
   return {
     narrative: {
+      intent: {
+        goal: text(r.intent?.goal),
+        decisions: strs(r.intent?.decisions),
+        rejected: strs(r.intent?.rejected),
+      },
       headline: text(r.headline),
       story: text(r.story),
       asks: arr(r.asks).map((a) => ({ request: text(a.request), status: a.status ?? "partial", note: text(a.note), anchors: anchors(a.anchors) })),
@@ -74,6 +79,10 @@ export function validateNarrative(
     },
     checks,
   };
+}
+
+function strs(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : [];
 }
 
 function arr(v: unknown): Record<string, any>[] {

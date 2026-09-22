@@ -29,9 +29,28 @@ async function api(path) {
   return res.json();
 }
 
+/** `#/history/<repo>` or `#/<repo>/<task>`. */
 function currentRoute() {
-  const [, repo, task] = location.hash.split("/");
-  return repo && task ? `${decodeURIComponent(repo)}/${decodeURIComponent(task)}` : null;
+  const [, a, b] = location.hash.split("/");
+  if (a === "history" && b) return { kind: "history", repo: decodeURIComponent(b) };
+  if (a && b) return { kind: "task", key: `${decodeURIComponent(a)}/${decodeURIComponent(b)}` };
+  return null;
+}
+
+function taskHash(key) {
+  return `#/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function route() {
+  const r = currentRoute();
+  if (r?.kind === "history") showHistory(r.repo);
+  else if (r?.kind === "task") {
+    if (r.key !== state.key) loadTask(r.key);
+    else if (state.view === "history") {
+      state.view = defaultView(state.graph);
+      renderView();
+    }
+  }
 }
 
 function taskPath(key) {
@@ -46,7 +65,15 @@ async function refreshTasks() {
     return; // server gone or token expired; keep what we have
   }
   renderTaskSelect();
-  if (!state.key && state.tasks.length > 0) {
+  const route = currentRoute();
+  if (route?.kind === "history") {
+    // new tasks (or finished stories) change the timeline
+    const sig = state.tasks.map((t) => t.id + t.status).join();
+    if (sig !== state.tasksSignature) {
+      if (state.tasksSignature !== undefined) showHistory(route.repo, true);
+      state.tasksSignature = sig;
+    }
+  } else if (!state.key && state.tasks.length > 0) {
     const t = state.tasks[0];
     location.replace(`#/${encodeURIComponent(t.repoId)}/${encodeURIComponent(t.id)}`);
   } else if (state.tasks.length === 0) {
@@ -91,19 +118,40 @@ function defaultView(g) {
 }
 
 function setView(view) {
+  if (view === "history") {
+    const repo = state.graph?.task.repoId ?? state.historyRepo;
+    if (repo) location.hash = `#/history/${encodeURIComponent(repo)}`;
+    return;
+  }
+  if (state.view === "history") {
+    if (!state.loadedKey) return;
+    state.view = view;
+    history.replaceState(null, "", taskHash(state.loadedKey));
+    renderView();
+    renderOverview();
+    return;
+  }
   if (state.view === view) return;
   state.view = view;
   renderView();
 }
 
 function renderView() {
-  const story = state.view === "story";
-  $("#story-view").hidden = !story;
-  $("#structure-view").hidden = story;
-  $("#context-toggle").hidden = story;
-  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.view === state.view));
+  const v = state.view;
+  $("#story-view").hidden = v !== "story";
+  $("#structure-view").hidden = v !== "structure";
+  $("#history-view").hidden = v !== "history";
+  $("#context-toggle").hidden = v !== "structure";
+  $("#fit").hidden = v === "history";
+  $("#stats").hidden = v === "history";
+  for (const b of document.querySelectorAll(".tabs button")) {
+    b.setAttribute("aria-selected", String(b.dataset.view === v));
+    b.disabled = b.dataset.view !== "history" && !state.loadedKey;
+  }
   renderStats(state.graph);
-  if (story) {
+  if (v === "history") {
+    renderHistory();
+  } else if (v === "story") {
     renderStory();
   } else {
     state.cy.resize();
@@ -644,7 +692,7 @@ function formatTime(iso) {
 
 initCy();
 $("#task-select").addEventListener("change", (e) => {
-  location.hash = `#/${e.target.value.split("/").map(encodeURIComponent).join("/")}`;
+  location.hash = taskHash(e.target.value);
 });
 $("#fit").addEventListener("click", () => activeCy()?.fit(undefined, 32));
 for (const b of document.querySelectorAll(".tabs button")) b.addEventListener("click", () => setView(b.dataset.view));
@@ -655,12 +703,7 @@ $("#show-context").addEventListener("change", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "f" && !e.metaKey && !e.ctrlKey && e.target === document.body) activeCy()?.fit(undefined, 32);
 });
-window.addEventListener("hashchange", () => {
-  const key = currentRoute();
-  if (key && key !== state.key) loadTask(key);
-});
-
-const initial = currentRoute();
-if (initial) loadTask(initial);
+window.addEventListener("hashchange", route);
+route();
 refreshTasks();
 setInterval(refreshTasks, 5000);

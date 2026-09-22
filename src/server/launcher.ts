@@ -43,6 +43,10 @@ export async function ensureServer(): Promise<ServerInfo | null> {
   return null;
 }
 
+export function historyUrl(info: ServerInfo, repoId: string): string {
+  return `http://127.0.0.1:${info.port}/?t=${info.token}#/history/${encodeURIComponent(repoId)}`;
+}
+
 export function taskUrl(info: ServerInfo, repoId: string, taskId: string): string {
   return `http://127.0.0.1:${info.port}/?t=${info.token}#/${encodeURIComponent(repoId)}/${encodeURIComponent(taskId)}`;
 }

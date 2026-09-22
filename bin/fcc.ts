@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-import { logError, onPrompt, onStop, onTool, type HookInput, type HookOutput } from "../src/hooks.ts";
+import { onPrompt, onStop, onTool, type HookInput, type HookOutput } from "../src/hooks.ts";
+import { logError } from "../src/log.ts";
 
 const USAGE = `usage:
   fcc hook <prompt|tool|stop>   run as a Claude Code hook (JSON on stdin)
   fcc analyze <repoId> <taskId> build the graph for a recorded task
   fcc serve                     start the local viewer server
-  fcc open                      print the viewer URL (starting the server if needed)`;
+  fcc open                      print the viewer URL (starting the server if needed)
+  fcc flow --session <id> --cwd <dir> [start "name" | end | private | public]
+                                history and feature grouping (used by the /flow skill)`;
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -56,6 +59,11 @@ async function main(): Promise<void> {
       const info = await ensureServer();
       if (!info) throw new Error("server did not start; see ~/.claude/flow/fcc.log");
       console.log(`http://127.0.0.1:${info.port}/?t=${info.token}`);
+      return;
+    }
+    case "flow": {
+      const { flowCommand } = await import("../src/flow-command.ts");
+      console.log(await flowCommand(args));
       return;
     }
     default:

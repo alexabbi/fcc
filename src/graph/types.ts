@@ -1,3 +1,5 @@
+import type { ConversationEntry } from "../history/conversation.ts";
+import type { Fingerprint } from "../history/fingerprint.ts";
 import type { NarrativeState } from "../narrative/types.ts";
 
 export type NodeStatus = "added" | "modified" | "removed" | "renamed" | "context";
@@ -70,6 +72,16 @@ export interface TaskInfo {
   /** Repo-relative paths Claude wrote with Edit/Write/MultiEdit/NotebookEdit. */
   claudeFiles: string[];
   usedBash: boolean;
+  /** Claude Code transcript, to rebuild the conversation behind the task (S13). */
+  transcriptPath?: string;
+  /** The conversation starts after this instant (end of the previous task of the session). */
+  conversationSince?: string;
+  /** Feature opened with `/flow start` (S14). */
+  feature?: string;
+  /** `/flow private`: never written to the repo (S10). */
+  private?: boolean;
+  /** HEAD when the task started. */
+  baseCommit?: string;
 }
 
 export interface FlowGraph {
@@ -82,6 +94,12 @@ export interface FlowGraph {
   warnings: string[];
   /** Levels 0–1; absent on graphs written before M2. */
   narrative?: NarrativeState;
+  /** Raw conversation behind the task; local cache only, never written to the repo (S10). */
+  conversation?: ConversationEntry[];
+  /** Line keys of the change, to find its commits later (S5). */
+  fingerprint?: Fingerprint;
+  /** Repo-relative path of the history record, once written (S6–S9). */
+  recordPath?: string;
   stats?: {
     filesChanged: number;
     symbolsAdded: number;

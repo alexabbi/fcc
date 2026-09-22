@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { FlowGraph } from "./graph/types.ts";
-import { fccHome, taskDir, tasksDir } from "./paths.ts";
+import { fccHome, repoDir, taskDir, tasksDir } from "./paths.ts";
 
 const GRAPH = "graph.json";
 
@@ -30,6 +30,35 @@ export interface TaskSummary {
   endedAt: string;
   status: FlowGraph["status"];
   stats?: FlowGraph["stats"];
+}
+
+/** Remember where a repo lives, so its history can be read even before its first local task. */
+export function registerRepo(repoId: string, repoRoot: string): void {
+  const dir = repoDir(repoId);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, "repo.json"), JSON.stringify({ root: repoRoot }));
+}
+
+export function listRepos(): { repoId: string; root: string; name: string }[] {
+  const repos: { repoId: string; root: string; name: string }[] = [];
+  for (const repoId of safeReaddir(path.join(fccHome(), "repos"))) {
+    try {
+      const { root } = JSON.parse(readFileSync(path.join(repoDir(repoId), "repo.json"), "utf8"));
+      if (typeof root === "string") repos.push({ repoId, root, name: path.basename(root) });
+    } catch {
+      // repo known only from tasks written before M3
+      const t = listTasks().find((x) => x.repoId === repoId);
+      if (t) repos.push({ repoId, root: t.repoRoot, name: path.basename(t.repoRoot) });
+    }
+  }
+  return repos;
+}
+
+/** Local tasks of one repo, as full graphs. */
+export function readRepoGraphs(repoId: string): FlowGraph[] {
+  return safeReaddir(tasksDir(repoId))
+    .map((id) => readGraph(repoId, id))
+    .filter((g): g is FlowGraph => g !== null);
 }
 
 /** All tasks across repos, newest first. */

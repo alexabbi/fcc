@@ -36,7 +36,15 @@ export interface FlowLink {
   grounded: boolean;
 }
 
+/** Why the task was done (S13): from the whole conversation, not just the last message. */
+export interface Intent {
+  goal: string;
+  decisions: string[];
+  rejected: string[];
+}
+
 export interface Narrative {
+  intent: Intent;
   headline: string;
   story: string;
   asks: Ask[];

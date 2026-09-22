@@ -5,13 +5,14 @@ const MAX_INPUT_CHARS = 120_000;
 const TRIMMED_DIFF_LINES = 40;
 
 export const SYSTEM_PROMPT = `You explain a finished coding task to the developer who delegated it to an AI agent and wants to review it WITHOUT reading the code.
-You receive the developer's request, the changed files, the changed symbols with their diffs, unchanged neighbor symbols (status "context"), and call-graph edges (status added/removed/unchanged). Every file and symbol has a short ref (f1, s1…).
-Write all text in the language of the developer's request.
+You receive the conversation between the developer and the agent that led to this task (the developer's messages, and the agent's proposals the developer may have accepted with a short "ok"; the last user message is what triggered the work), the changed files, the changed symbols with their diffs, unchanged neighbor symbols (status "context"), and call-graph edges (status added/removed/unchanged). Every file and symbol has a short ref (f1, s1…).
+Write all text in the language the developer writes in.
 
 Produce:
+- intent: why this work was done, for someone reading the project history months later. goal: one or two sentences. decisions: the choices agreed in the conversation that shaped this change (short, concrete). rejected: alternatives considered and dropped, with the reason when stated. Use only what the conversation says; empty lists are fine. Never copy personal data, secrets or remarks about people.
 - headline: one line saying what the task changed, in product/domain terms.
 - story: 2-4 sentences describing the behavior BEFORE vs AFTER, in domain language. No function or file names.
-- asks: split the developer's request into its individual asks. For each: done / partial / missing, judged strictly from the diffs, with a short note. Be skeptical: if an ask is not visibly implemented, it is "missing".
+- asks: what the developer asked to be done in THIS task (the conversation may also mention future work: leave that out), split into individual asks. For each: done / partial / missing, judged strictly from the diffs, with a short note. Be skeptical: if an ask is not visibly implemented, it is "missing".
 - verify: what the developer should personally check, most important first. Look for: behavior changes for existing callers, changes not made by the agent's edit tools (writtenBy "external"), data/schema changes, unhandled errors and edge cases, changes nobody asked for, missing tests, mismatches with the request. Concrete and short, no generic advice. Empty if there is truly nothing.
 - flow: a flowchart of the runtime behavior touched by the task, from the trigger (user action, API call, job…) to the outcome(s). 4-12 steps. Labels in domain language, at most 6 words, no identifiers. Decisions are "decision" steps with labeled outgoing links (e.g. "valid" / "invalid", in the request's language). Mark each step added / modified / removed / unchanged relative to the old behavior; include removed behavior as removed steps when relevant. If the change is not about runtime behavior (config, docs, refactor), show the affected flow at a coarser grain or what the change enables.
 
@@ -35,8 +36,11 @@ export function buildInput(graph: FlowGraph): NarrativeInput {
   files.forEach((f, i) => (refs.set(`f${i + 1}`, f.id), refOf.set(f.id, `f${i + 1}`)));
   symbols.forEach((s, i) => (refs.set(`s${i + 1}`, s.id), refOf.set(s.id, `s${i + 1}`)));
 
+  const conversation = graph.conversation?.length
+    ? graph.conversation.map((e) => ({ from: e.role === "user" ? "developer" : "agent", text: e.text }))
+    : [{ from: "developer", text: graph.task.prompt }];
   const build = (diffLines?: number) => ({
-    request: graph.task.prompt,
+    conversation,
     agentRanShellCommands: graph.task.usedBash,
     changedFiles: files.map((f) => ({
       ref: refOf.get(f.id),
@@ -83,7 +87,9 @@ function outputSchema(refs: string[]): object {
   });
   const str = { type: "string" };
   const anchors = { type: "array", items: refs.length > 0 && refs.length <= 400 ? { type: "string", enum: refs } : str };
+  const strings = { type: "array", items: str };
   return obj({
+    intent: obj({ goal: str, decisions: strings, rejected: strings }),
     headline: str,
     story: str,
     asks: {

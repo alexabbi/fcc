@@ -6,6 +6,7 @@ import { sessionDir } from "./paths.ts";
 export interface CurrentTask {
   repoRoot: string;
   beforeTree: string;
+  baseCommit?: string;
   startedAt: string;
   prompt: string;
 }
@@ -64,4 +65,35 @@ export function endTask(sessionId: string): void {
   const dir = sessionDir(sessionId);
   rmSync(path.join(dir, CURRENT), { force: true });
   rmSync(path.join(dir, TOOLS), { force: true });
+}
+
+/** Session-level state that outlives a single task. */
+export interface SessionMeta {
+  /** Feature opened with `/flow start "name"`, until `/flow end`. */
+  feature?: string;
+  /** `/flow private`: tasks of this session stay out of the repo. */
+  private?: boolean;
+  /** End of the last recorded task: the next task's conversation starts here. */
+  lastTaskEndedAt?: string;
+  lastTaskId?: string;
+  lastRepoId?: string;
+}
+
+const META = "meta.json";
+
+export function readSessionMeta(sessionId: string): SessionMeta {
+  try {
+    return JSON.parse(readFileSync(path.join(sessionDir(sessionId), META), "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+export function updateSessionMeta(sessionId: string, patch: Partial<SessionMeta>): SessionMeta {
+  const dir = sessionDir(sessionId);
+  mkdirSync(dir, { recursive: true });
+  const next = { ...readSessionMeta(sessionId), ...patch };
+  for (const k of Object.keys(next) as (keyof SessionMeta)[]) if (next[k] === undefined) delete next[k];
+  writeFileSync(path.join(dir, META), JSON.stringify(next, null, 2));
+  return next;
 }
