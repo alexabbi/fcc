@@ -1,6 +1,6 @@
 {
   "name": "fcc",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Flowchart for Claude Code: a symbol-level graph of what changed in each Claude Code task",
   "type": "module",
   "private": true,
