@@ -1,0 +1,13 @@
+{
+  "name": "fcc-local",
+  "owner": {
+    "name": "Alex Abbi"
+  },
+  "plugins": [
+    {
+      "name": "fcc",
+      "source": "./",
+      "description": "After each task, a plain-language story, behavior flowchart and symbol graph of what Claude changed."
+    }
+  ]
+}
