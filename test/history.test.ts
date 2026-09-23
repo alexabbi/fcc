@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, describe, test } from "node:test";
 import { runAnalysis } from "../src/analysis-job.ts";
+import { deleteTask, discardRecord } from "../src/history/discard.ts";
 import { flowCommand } from "../src/flow-command.ts";
 import { snapshotWorkTree } from "../src/git.ts";
 import type { FlowGraph } from "../src/graph/types.ts";
@@ -213,7 +214,7 @@ describe("/flow", () => {
     assert.ok(existsSync(path.join(repo.root, g.recordPath!)));
     updateSessionMeta("flow-session-2", { lastRepoId: graph.task.repoId, lastTaskId: graph.task.id });
     const out = await flowCommand(["--session", "flow-session-2", "private"]);
-    assert.match(out, /Removed the last task's record/);
+    assert.match(out, /Removed the last task's report/);
     assert.ok(!existsSync(path.join(repo.root, g.recordPath!)));
     assert.equal(readSessionMeta("flow-session-2").private, true);
     assert.equal(readGraph(graph.task.repoId, graph.task.id)?.task.private, true);
@@ -223,5 +224,58 @@ describe("/flow", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "fcc-nogit-"));
     assert.match(await flowCommand(["--session", "x", "--cwd", dir]), /not a git repository/);
     rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("deleting a report (it must never be committed)", () => {
+  test("remove from repo: the file goes, the task stays readable", async () => {
+    const { graph, repo } = pendingTask();
+    const g = await runAnalysis(graph.task.repoId, graph.task.id, fakeModel);
+    const record = path.join(repo.root, g.recordPath!);
+    assert.ok(existsSync(record));
+
+    const res = discardRecord(graph.task.repoId, graph.task.id);
+    assert.equal(res.ok, true);
+    assert.match(res.message, /Removed docs\/flow/);
+    assert.ok(!existsSync(record), "the Markdown is gone");
+    assert.ok(!existsSync(record.replace(/\.md$/, ".json")), "and so is the JSON");
+    const after = readGraph(graph.task.repoId, graph.task.id)!;
+    assert.equal(after.recordPath, undefined);
+    assert.equal(after.task.private, true, "so a re-analysis does not write it again");
+    assert.equal(after.narrative?.data?.headline, "Prices are now discounted", "the story is still there");
+    assert.equal(readRecords(repo.root).length, 0);
+  });
+
+  test("a re-analysis of a dropped task does not bring the report back", async () => {
+    const { graph, repo } = pendingTask();
+    await runAnalysis(graph.task.repoId, graph.task.id, fakeModel);
+    discardRecord(graph.task.repoId, graph.task.id);
+    const again = await runAnalysis(graph.task.repoId, graph.task.id, fakeModel);
+    assert.equal(again.recordPath, undefined);
+    assert.equal(readRecords(repo.root).length, 0);
+  });
+
+  test("delete the task: nothing left in the repo or the cache", async () => {
+    const { graph, repo } = pendingTask();
+    const g = await runAnalysis(graph.task.repoId, graph.task.id, fakeModel);
+    const res = deleteTask(graph.task.repoId, graph.task.id);
+    assert.equal(res.ok, true);
+    assert.ok(!existsSync(path.join(repo.root, g.recordPath!)));
+    assert.equal(readGraph(graph.task.repoId, graph.task.id), null);
+    assert.equal(buildHistory(graph.task.repoId, repo.root).count, 0);
+  });
+
+  test("/flow drop removes the last task's report without making the session private", async () => {
+    const { graph, repo } = pendingTask({ sessionId: "drop-session" });
+    const g = await runAnalysis(graph.task.repoId, graph.task.id, fakeModel);
+    updateSessionMeta("drop-session", { lastRepoId: graph.task.repoId, lastTaskId: graph.task.id });
+    const out = await flowCommand(["--session", "drop-session", "drop"]);
+    assert.match(out, /Removed docs\/flow/);
+    assert.ok(!existsSync(path.join(repo.root, g.recordPath!)));
+    assert.equal(readSessionMeta("drop-session").private, undefined, "only this report was dropped");
+  });
+
+  test("deleting an unknown task says so instead of throwing", () => {
+    assert.deepEqual(discardRecord("nope", "nope"), { ok: false, message: "Task not found." });
   });
 });

@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fccHome, serverInfoPath } from "../paths.ts";
+import { deleteTask, discardRecord } from "../history/discard.ts";
 import { buildHistory, recordToGraph } from "../history/timeline.ts";
 import { listRepos, listTasks, readGraph } from "../tasks.ts";
 import { readServerInfo, type ServerInfo } from "./launcher.ts";
@@ -90,11 +91,15 @@ function handle(req: IncomingMessage, res: ServerResponse, token: string, port: 
   // DNS-rebinding guard: only answer requests addressed to loopback.
   const host = req.headers.host ?? "";
   if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return send(res, 403, "text/plain", "forbidden host");
-  if (req.method !== "GET") return send(res, 405, "text/plain", "method not allowed");
+  if (req.method !== "GET" && req.method !== "DELETE") return send(res, 405, "text/plain", "method not allowed");
 
   const cookieName = `fcc_${port}`;
   const queryToken = url.searchParams.get("t");
-  const presented = queryToken ?? req.headers["x-fcc-token"]?.toString() ?? readCookie(req, cookieName);
+  // Deletions require the token in the header: a cookie alone could be replayed by another page.
+  const presented =
+    req.method === "DELETE"
+      ? req.headers["x-fcc-token"]?.toString()
+      : (queryToken ?? req.headers["x-fcc-token"]?.toString() ?? readCookie(req, cookieName));
   if (!presented || !safeEqual(presented, token)) return send(res, 401, "text/plain", "missing or invalid token");
   if (queryToken) {
     res.setHeader("Set-Cookie", `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/`);
@@ -111,8 +116,16 @@ function handle(req: IncomingMessage, res: ServerResponse, token: string, port: 
     return repo ? sendJson(res, buildHistory(repo.repoId, repo.root)) : send(res, 404, "text/plain", "unknown repo");
   }
 
+  const d = /^\/api\/tasks\/([^/]+)\/([^/]+)\/(record|task)$/.exec(url.pathname);
+  if (d && req.method === "DELETE") {
+    const repoId = decodeURIComponent(d[1]!);
+    const taskId = decodeURIComponent(d[2]!);
+    const result = d[3] === "task" ? deleteTask(repoId, taskId) : discardRecord(repoId, taskId);
+    return sendJson(res, result);
+  }
+
   const m = /^\/api\/tasks\/([^/]+)\/([^/]+)$/.exec(url.pathname);
-  if (m) {
+  if (m && req.method === "GET") {
     const repoId = decodeURIComponent(m[1]!);
     const taskId = decodeURIComponent(m[2]!);
     // Not in the local cache (a teammate's task, after a pull): rebuild it from the repo record.

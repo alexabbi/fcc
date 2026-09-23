@@ -31,6 +31,14 @@ async function api(path) {
   return res.json();
 }
 
+/** Deletions carry the token in a header, so no other page can trigger them. */
+async function apiDelete(path) {
+  const token = new URLSearchParams(location.search).get("t") ?? "";
+  const res = await fetch(path, { method: "DELETE", headers: { "x-fcc-token": token } });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+
 /** `#/history/<repo>` or `#/<repo>/<task>`. */
 function currentRoute() {
   const [, a, b] = location.hash.split("/");
@@ -516,7 +524,75 @@ function renderOverview() {
     }
     p.append(ul);
   }
+  const actions = reportActions(g);
+  if (actions) p.append(actions);
   p.append(el("p", "note", "Click a node to see its diff. Hover a function to highlight its calls."));
+}
+
+/** The report of this task in the repo: commit it, or get rid of it. */
+function reportActions(g) {
+  // A task rebuilt from a teammate's record is not ours to delete.
+  if (!g.task.before) return null;
+  const box = el("div", "report-actions");
+  box.append(el("h3", "", "Report"));
+  box.append(
+    el(
+      "p",
+      "note",
+      g.recordPath
+        ? `Written to ${g.recordPath}. Commit it with the code it explains, or remove it before you do.`
+        : g.task.private
+          ? "Not written to the repo: this task is private."
+          : "Not written to the repo.",
+    ),
+  );
+  const row = el("div", "actions");
+  // Returns the button itself: the click handler is what is async.
+  const act = (label, question, path, after) => {
+    const b = el("button", "", label);
+    b.type = "button";
+    b.onclick = async () => {
+      if (!confirm(question)) return;
+      b.disabled = true;
+      try {
+        const res = await apiDelete(path);
+        await after(res);
+      } catch (err) {
+        alert(`fcc: ${err.message ?? err}`);
+        b.disabled = false;
+      }
+    };
+    row.append(b);
+    return b;
+  };
+  const key = state.key;
+  if (g.recordPath) {
+    act(
+      "Remove from repo",
+      `Remove ${g.recordPath} so it is never committed?\n\nThe task stays readable here.`,
+      `/api/tasks/${key.split("/").map(encodeURIComponent).join("/")}/record`,
+      async () => {
+        state.signature = null;
+        await loadTask(key);
+      },
+    );
+  }
+  act(
+    "Delete this task",
+    "Delete this task completely: its report in the repo and everything fcc kept about it here?",
+    `/api/tasks/${key.split("/").map(encodeURIComponent).join("/")}/task`,
+    async () => {
+      const repo = g.task.repoId;
+      state.key = null;
+      state.loadedKey = null;
+      state.graph = null;
+      state.tasksSignature = undefined;
+      await refreshTasks();
+      location.hash = `#/history/${encodeURIComponent(repo)}`;
+    },
+  ).classList.add("danger");
+  box.append(row);
+  return box;
 }
 
 function renderSymbol(n) {

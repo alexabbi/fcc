@@ -1,15 +1,15 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { findRepoRoot } from "./git.ts";
-import { removeRecord } from "./history/record.ts";
+import { discardRecord } from "./history/discard.ts";
 import { repoIdFor } from "./paths.ts";
 import { ensureServer, historyUrl } from "./server/launcher.ts";
 import { readSessionMeta, updateSessionMeta } from "./session.ts";
-import { readGraph, registerRepo, writeGraph } from "./tasks.ts";
+import { readGraph, registerRepo } from "./tasks.ts";
 
 const USAGE = `/flow                 open the development history of this project
 /flow start "name"    group the next tasks under a feature
 /flow end             stop grouping
+/flow drop            delete the last task's report so it is never committed
 /flow private         keep this session's tasks out of the repo (the last one is withdrawn)
 /flow public          write this session's next tasks to the repo again`;
 
@@ -51,6 +51,13 @@ export async function flowCommand(argv: string[]): Promise<string> {
       updateSessionMeta(session, { feature: undefined });
       return feature ? `fcc: closed the feature "${feature}".` : "fcc: no feature was open.";
     }
+    case "drop": {
+      needSession();
+      const meta = readSessionMeta(session);
+      if (!meta.lastRepoId || !meta.lastTaskId) return "fcc: no task of this session to drop.";
+      const result = discardRecord(meta.lastRepoId, meta.lastTaskId);
+      return `fcc: ${result.message}`;
+    }
     case "private": {
       needSession();
       const meta = updateSessionMeta(session, { private: true });
@@ -71,15 +78,8 @@ function withdrawLast(session: string, repoId?: string, taskId?: string): string
   if (!repoId || !taskId) return "";
   const g = readGraph(repoId, taskId);
   if (!g || g.task.sessionId !== session) return "";
-  g.task.private = true;
-  let note = "";
-  if (g.recordPath) {
-    if (existsSync(path.join(g.task.repoRoot, g.recordPath))) {
-      removeRecord(g.task.repoRoot, g.recordPath);
-      note = ` Removed the last task's record (${g.recordPath}); if it was already committed, the removal shows up in git status.`;
-    }
-    delete g.recordPath;
-  }
-  writeGraph(g);
-  return note || " The last task was marked private too.";
+  const result = discardRecord(repoId, taskId);
+  return result.recordPath
+    ? ` Removed the last task's report (${result.recordPath}); if it was already committed, the removal shows up in git status.`
+    : " The last task was marked private too.";
 }
