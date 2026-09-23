@@ -54,6 +54,7 @@ finishes. To update later: `claude plugin update fcc@fcc`; to remove it:
 | `/flow` | open the history of the current project |
 | `/flow start "Discount codes"` | group the next tasks under a feature |
 | `/flow end` | stop grouping |
+| `/flow drop` | delete the last task's report so it is never committed |
 | `/flow private` | keep this session's tasks out of the repo (the last one is withdrawn) |
 | `/flow public` | write them to the repo again |
 
@@ -73,6 +74,10 @@ finishes. To update later: `claude plugin update fcc@fcc`; to remove it:
   headline, never by your prompt. The only thing fcc writes in your repo is
   the history record in `docs/flow/`, which you commit yourself; everything
   else lives in `~/.claude/flow/`.
+- A report you do not want is easy to get rid of: `/flow drop`, or the
+  **Remove from repo** button in the task panel (**Delete this task** also
+  clears what fcc kept locally). A dropped task is marked private, so a later
+  re-analysis does not write it back.
 - The viewer listens on 127.0.0.1 only and requires a random per-run token.
 
 ## How it works

@@ -75,6 +75,7 @@ next to the code it explains.
 | S7 | Format | One Markdown file per task (story, asks, verify, Mermaid flowchart — readable anywhere) plus a JSON sidecar for the viewer. |
 | S8 | Location | `docs/flow/` by default, configurable. |
 | S9 | Who commits | The developer, together with the code: fcc writes the record in the working tree; fcc excludes its own directory from the analysis. |
+| S10b | Dropping a report | A finished report can be deleted before it is ever committed: `/flow drop`, or the viewer's **Remove from repo** (and **Delete this task** for the local copy too). The task is marked private so re-analysis never rewrites it. Deletions go through `DELETE /api/tasks/…` and require the token in a header, never a cookie. |
 | S10 | Privacy | **Revised after use.** What the developer typed is never stored at all: the conversation is held in memory while the story is written and never reaches disk, in the repo or in the cache. Tasks are identified by their headline, not by the prompt ("ok, go" says nothing anyway). `/flow private` still keeps a whole task out of the repo. |
 | S11 | Browsing | Project timeline and full-text search first; per-code-area view next; periodic digests later. |
 | S12 | Access | A "History" tab in the viewer, opened with `/flow` from Claude Code, reading `docs/flow/` (so teammates' tasks appear after a pull). The Markdown files are readable without fcc, in the IDE and on GitHub. No shared index file (merge conflicts). |

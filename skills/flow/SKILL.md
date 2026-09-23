@@ -1,7 +1,7 @@
 ---
 name: flow
-description: Development history of this project (fcc). /flow opens the history; /flow start "name" and /flow end group tasks under a feature; /flow private keeps this session's tasks out of the repo; /flow public undoes it.
-argument-hint: '[start "feature name" | end | private | public]'
+description: Development history of this project (fcc). /flow opens the history; /flow start "name" and /flow end group tasks under a feature; /flow drop deletes the last task's report so it is never committed; /flow private keeps this session's tasks out of the repo; /flow public undoes it.
+argument-hint: '[start "feature name" | end | drop | private | public]'
 disable-model-invocation: true
 allowed-tools: Bash(node *)
 ---
