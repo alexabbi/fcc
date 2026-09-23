@@ -30,7 +30,7 @@ export async function runAnalysis(repoId: string, taskId: string, runner?: LlmRu
     throw err;
   }
 
-  const settings = llmSettings();
+  const settings = llmSettings(graph.task.repoRoot);
   if (!settings || graph.nodes.length === 0) {
     graph.narrative = { status: "off" };
   } else {

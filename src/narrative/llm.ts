@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
+import { readConfig } from "../config.ts";
 import type { Engine } from "./types.ts";
 
 export interface LlmRequest {
@@ -18,11 +19,10 @@ export type LlmRunner = (req: LlmRequest) => Promise<LlmResult>;
 
 const TIMEOUT_MS = 4 * 60_000;
 
-/** `FCC_LLM` = claude (default) | api | off; `FCC_MODEL` = sonnet (default) | haiku | opus | full model id. */
-export function llmSettings(env = process.env): { engine: Engine; model: string } | null {
-  const mode = (env.FCC_LLM ?? "claude").toLowerCase();
-  if (mode === "off" || mode === "0" || mode === "false") return null;
-  return { engine: mode === "api" ? "api" : "claude", model: env.FCC_MODEL ?? "sonnet" };
+/** Engine and model for this repo, or null when stories are turned off. */
+export function llmSettings(repoRoot?: string): { engine: Engine; model: string } | null {
+  const { llm, model } = readConfig(repoRoot);
+  return llm === "off" ? null : { engine: llm, model };
 }
 
 export function runnerFor(engine: Engine): LlmRunner {

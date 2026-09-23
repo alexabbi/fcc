@@ -51,7 +51,7 @@ reading less code only works if the tool says where code *should* be read.
 | Q18 | LLM role | **Revised after P1.** Writes levels 0–1: story, request coverage, what to verify, behavior flowchart. May create behavior steps, but each step must be anchored to level-2 ids; output is schema-validated, unknown anchors dropped, links graded grounded/inferred. |
 | Q19 | Storage | **Revised by S4/S6.** Full task data cached in `~/.claude/flow/`, kept forever (no retention); the history record lives in the repo. |
 | Q20 | `/flow` windows | **Superseded by S2/S14.** Tasks stay per turn; `/flow start "name" … end` names the feature they are grouped under; `SessionEnd` closes an open window. |
-| Q21 | Config | `~/.claude/flow.json` + `<repo>/.claude/flow.json` overrides (M3). |
+| Q21 | Config | `~/.claude/flow/config.json` + `<repo>/.claude/flow.json` overrides, environment variables on top. Model and engine are settable with `/flow model`; the remaining knobs are still environment-only (M4). |
 | Q22 | Roadmap | **Revised after S1–S14.** M1 core loop · M2 levels 0–1 (narrative + anchored behavior flow) · M3 development history (S1–S14), including the request fix of S13 · M4 big diffs, config file, Mermaid export, Nx project graph, publishing. |
 | Q23 | Location | This repo. |
 | Q24 | Server security | Bound to 127.0.0.1, random per-run token, Host-header check. |

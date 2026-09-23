@@ -1,0 +1,7 @@
+import { createRequire as __fccCreateRequire } from "node:module";
+import { fileURLToPath as __fccFileURLToPath } from "node:url";
+const require = __fccCreateRequire(import.meta.url);
+const __filename = __fccFileURLToPath(import.meta.url);
+const __dirname = __fccFileURLToPath(new URL(".", import.meta.url));
+import{a as p}from"./chunk-K36REYFE.mjs";import{mkdirSync as a,readFileSync as d,renameSync as m,writeFileSync as F}from"node:fs";import c from"node:path";var g={llm:"claude",model:"sonnet"},x=["sonnet","haiku","opus"];function f(){return c.join(p(),"config.json")}function s(e){return c.join(e,".claude","flow.json")}function y(e){let n={...g,...t(f()),...e?t(s(e)):{}},o=process.env;return o.FCC_LLM&&(n.llm=C(o.FCC_LLM)),o.FCC_MODEL&&(n.model=o.FCC_MODEL),{llm:C(n.llm),model:String(n.model||g.model)}}function O(e,n){return process.env[e==="llm"?"FCC_LLM":"FCC_MODEL"]?"env":n&&t(s(n))[e]!==void 0?"project":t(f())[e]!==void 0?"user":"default"}function _(e,n,o){let r=e==="project"?s(o??process.cwd()):f(),i={...t(r),...n};for(let u of Object.keys(i))i[u]===void 0&&delete i[u];a(c.dirname(r),{recursive:!0});let l=`${r}.${process.pid}.tmp`;return F(l,JSON.stringify(i,null,2)+`
+`),m(l,r),r}function t(e){try{let n=JSON.parse(d(e,"utf8"));return n&&typeof n=="object"?n:{}}catch{return{}}}function C(e){let n=String(e).toLowerCase();return n==="off"||n==="0"||n==="false"||n==="none"?"off":n==="api"?"api":"claude"}export{g as a,x as b,y as c,O as d,_ as e};

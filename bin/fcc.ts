@@ -7,8 +7,9 @@ const USAGE = `usage:
   fcc analyze <repoId> <taskId> build the graph for a recorded task
   fcc serve                     start the local viewer server
   fcc open                      print the viewer URL (starting the server if needed)
-  fcc flow --session <id> --cwd <dir> [start "name" | end | private | public]
-                                history and feature grouping (used by the /flow skill)`;
+  fcc flow --session <id> --cwd <dir>
+        [model <name> | start "name" | end | drop | private | public]
+                                history, model choice and feature grouping (used by the /flow skill)`;
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];

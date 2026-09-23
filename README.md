@@ -52,6 +52,7 @@ finishes. To update later: `claude plugin update fcc@fcc`; to remove it:
 | Command | Effect |
 |---|---|
 | `/flow` | open the history of the current project |
+| `/flow model haiku` | choose the model that writes the stories (`sonnet` by default, or `opus`, a full `claude-…` id, or `off`); add `project` to set it for this repository only |
 | `/flow start "Discount codes"` | group the next tasks under a feature |
 | `/flow end` | stop grouping |
 | `/flow drop` | delete the last task's report so it is never committed |
@@ -67,7 +68,10 @@ finishes. To update later: `claude plugin update fcc@fcc`; to remove it:
   structure is ready in seconds, the story in about a minute.
 - The story is written by Sonnet through your existing Claude Code login
   (`claude -p` with a minimal context: about $0.06 per task in our tests).
-  `FCC_LLM=off` turns it off, `FCC_LLM=api` uses the Anthropic API instead.
+  Change it with `/flow model <name>`, per user or per repository; the choice
+  is stored in `~/.claude/flow/config.json` or `<repo>/.claude/flow.json`.
+  `FCC_LLM` and `FCC_MODEL` still override both, and `/flow model off` (or
+  `FCC_LLM=off`) keeps only the structure and the history.
 - **What you type is never stored.** The conversation behind a task is read
   from the Claude Code transcript, used to write the story, then dropped — it
   reaches neither the repo nor fcc's own cache, and tasks are listed by their

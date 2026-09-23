@@ -1,4 +1,5 @@
 import path from "node:path";
+import { configSource, DEFAULT_CONFIG, MODEL_CHOICES, readConfig, writeConfig } from "./config.ts";
 import { findRepoRoot } from "./git.ts";
 import { discardRecord } from "./history/discard.ts";
 import { repoIdFor } from "./paths.ts";
@@ -9,6 +10,8 @@ import { readGraph, registerRepo } from "./tasks.ts";
 const USAGE = `/flow                 open the development history of this project
 /flow start "name"    group the next tasks under a feature
 /flow end             stop grouping
+/flow model [name]    show or set the model: sonnet, haiku, opus, a model id, or off
+                      (add "project" to set it for this repository only)
 /flow drop            delete the last task's report so it is never committed
 /flow private         keep this session's tasks out of the repo (the last one is withdrawn)
 /flow public          write this session's next tasks to the repo again`;
@@ -50,6 +53,31 @@ export async function flowCommand(argv: string[]): Promise<string> {
       const { feature } = readSessionMeta(session);
       updateSessionMeta(session, { feature: undefined });
       return feature ? `fcc: closed the feature "${feature}".` : "fcc: no feature was open.";
+    }
+    case "model": {
+      const repoRoot = findRepoRoot(cwd) ?? undefined;
+      const scope = rest.some((w) => /^(project|repo|here|--project)$/i.test(w)) ? "project" : "user";
+      const name = rest.filter((w) => !/^(project|repo|here|--project)$/i.test(w)).join(" ").trim();
+      const current = readConfig(repoRoot);
+      if (!name) {
+        const from = configSource("model", repoRoot);
+        const llmFrom = configSource("llm", repoRoot);
+        const engine = current.llm === "api" ? "the Anthropic API" : "your Claude Code login";
+        const state = current.llm === "off" ? `off (set at ${llmFrom} level)` : `${current.model} through ${engine} (set at ${from} level)`;
+        return `fcc: stories are written with ${state}. Choose with: /flow model <${MODEL_CHOICES.join(" | ")} | claude-… | off>, adding "project" to set it for this repository only.`;
+      }
+      if (scope === "project" && !repoRoot) return "fcc: not inside a git repository, so there is no project to configure.";
+      const lower = name.toLowerCase();
+      if (lower === "off" || lower === "none") {
+        const file = writeConfig(scope, { llm: "off" }, repoRoot);
+        return `fcc: stories are off (${scope} setting, ${file}). Structure and history still work. Turn them back on with /flow model ${DEFAULT_CONFIG.model}.`;
+      }
+      if (!MODEL_CHOICES.includes(lower) && !lower.startsWith("claude-")) {
+        return `fcc: unknown model "${name}". Use ${MODEL_CHOICES.join(", ")}, a full model id (claude-…), or off.`;
+      }
+      const file = writeConfig(scope, { model: lower, llm: current.llm === "off" ? "claude" : current.llm }, repoRoot);
+      const envNote = configSource("model", repoRoot) === "env" ? " Note: FCC_MODEL is set in your environment and overrides this." : "";
+      return `fcc: stories will be written with ${lower} (${scope} setting, ${file}).${envNote}`;
     }
     case "drop": {
       needSession();
