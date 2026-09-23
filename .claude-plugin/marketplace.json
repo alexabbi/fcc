@@ -1,5 +1,6 @@
 {
-  "name": "fcc-local",
+  "name": "fcc",
+  "description": "Flowchart for Claude Code: what each task changed, in plain language, with a development history kept in your repo.",
   "owner": {
     "name": "Alex Abbi"
   },
@@ -7,7 +8,7 @@
     {
       "name": "fcc",
       "source": "./",
-      "description": "After each task, a plain-language story, behavior flowchart and symbol graph of what Claude changed."
+      "description": "After each task: a story of what changed, a behavior flowchart anchored to the code, a symbol graph, and a searchable history committed with your repo."
     }
   ]
 }

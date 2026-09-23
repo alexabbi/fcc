@@ -1,10 +1,10 @@
 {
   "name": "fcc",
   "version": "0.3.0",
-  "description": "Flowchart for Claude Code: after each task, a symbol-level graph of what Claude changed.",
+  "description": "After each Claude Code task: a plain-language story of what changed, what to verify, a behavior flowchart anchored to real code, a symbol graph, and a development history kept in your repo.",
   "author": {
     "name": "Alex Abbi"
   },
   "license": "MIT",
-  "keywords": ["diff", "flowchart", "review", "visualization", "typescript"]
+  "keywords": ["claude-code", "review", "diff", "flowchart", "history", "visualization", "typescript"]
 }
