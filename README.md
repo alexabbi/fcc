@@ -54,8 +54,10 @@ In Claude Code:
 
 The story of a task is written from the whole conversation that led to it,
 not just the last message: after a long discussion ending in "ok, go", the
-*why* still contains the decisions you agreed on. Your raw messages stay on
-your machine; only the summary goes into the repo.
+*why* still contains the decisions you agreed on. What you typed is never
+stored — not in the repo, not in fcc's cache: the conversation is read from
+the Claude Code transcript, used to write the story, and dropped. Tasks are
+listed by their headline, never by your prompt.
 
 ## How it works
 

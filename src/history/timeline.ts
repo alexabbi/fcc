@@ -149,7 +149,6 @@ export function recordToGraph(repoId: string, repoRoot: string, taskId: string):
       repoId,
       repoRoot,
       sessionId: r.task.session,
-      prompt: "",
       startedAt: r.task.startedAt,
       endedAt: r.task.endedAt,
       before: "",

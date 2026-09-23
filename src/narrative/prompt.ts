@@ -36,11 +36,9 @@ export function buildInput(graph: FlowGraph): NarrativeInput {
   files.forEach((f, i) => (refs.set(`f${i + 1}`, f.id), refOf.set(f.id, `f${i + 1}`)));
   symbols.forEach((s, i) => (refs.set(`s${i + 1}`, s.id), refOf.set(s.id, `s${i + 1}`)));
 
-  const conversation = graph.conversation?.length
-    ? graph.conversation.map((e) => ({ from: e.role === "user" ? "developer" : "agent", text: e.text }))
-    : [{ from: "developer", text: graph.task.prompt }];
+  const conversation = (graph.conversation ?? []).map((e) => ({ from: e.role === "user" ? "developer" : "agent", text: e.text }));
   const build = (diffLines?: number) => ({
-    conversation,
+    ...(conversation.length ? { conversation } : { conversation: [], note: "The conversation is not available: describe the change from the diffs alone and leave asks empty." }),
     agentRanShellCommands: graph.task.usedBash,
     changedFiles: files.map((f) => ({
       ref: refOf.get(f.id),

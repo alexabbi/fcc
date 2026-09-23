@@ -20,7 +20,6 @@ function run(initial: Record<string, string>, changes: Record<string, string | n
     repoId: "r",
     repoRoot: repo.root,
     sessionId: "s",
-    prompt: "",
     startedAt: "",
     endedAt: "",
     before,

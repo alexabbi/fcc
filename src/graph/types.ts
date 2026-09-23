@@ -64,7 +64,6 @@ export interface TaskInfo {
   repoId: string;
   repoRoot: string;
   sessionId: string;
-  prompt: string;
   startedAt: string;
   endedAt: string;
   before: string;
@@ -94,7 +93,10 @@ export interface FlowGraph {
   warnings: string[];
   /** Levels 0–1; absent on graphs written before M2. */
   narrative?: NarrativeState;
-  /** Raw conversation behind the task; local cache only, never written to the repo (S10). */
+  /**
+   * Conversation behind the task, held only while the story is written and
+   * then deleted: neither the repo nor the local cache keeps what you typed.
+   */
   conversation?: ConversationEntry[];
   /** Line keys of the change, to find its commits later (S5). */
   fingerprint?: Fingerprint;

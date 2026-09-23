@@ -75,7 +75,7 @@ next to the code it explains.
 | S7 | Format | One Markdown file per task (story, asks, verify, Mermaid flowchart — readable anywhere) plus a JSON sidecar for the viewer. |
 | S8 | Location | `docs/flow/` by default, configurable. |
 | S9 | Who commits | The developer, together with the code: fcc writes the record in the working tree; fcc excludes its own directory from the analysis. |
-| S10 | Privacy | The repo gets the intent summary, never the raw messages (those stay in the local cache); `/flow private` keeps a task out of the repo entirely. |
+| S10 | Privacy | **Revised after use.** What the developer typed is never stored at all: the conversation is held in memory while the story is written and never reaches disk, in the repo or in the cache. Tasks are identified by their headline, not by the prompt ("ok, go" says nothing anyway). `/flow private` still keeps a whole task out of the repo. |
 | S11 | Browsing | Project timeline and full-text search first; per-code-area view next; periodic digests later. |
 | S12 | Access | A "History" tab in the viewer, opened with `/flow` from Claude Code, reading `docs/flow/` (so teammates' tasks appear after a pull). The Markdown files are readable without fcc, in the IDE and on GitHub. No shared index file (merge conflicts). |
 | S13 | What "the request" is | All user messages since the previous task, read from the Claude Code transcript, plus an intent summary written by the model: goal, decisions, rejected alternatives. Also fixes M2, which judged the asks against the last message only (after a grilling session that is just "ok, go"). |
@@ -100,7 +100,9 @@ How it works:
   the session's previous task, up to this task's end. Budgets: 4k chars per
   user message, 3k per assistant message (10k for the last one, usually the
   plan being approved), 60k total, trimming the oldest assistant text first.
-  Kept in the local cache only.
+  Held in memory only: `writeGraph` strips it, so no prompt or message of
+  yours is ever written to disk — the story, the intent and the headline
+  replace it everywhere, including the task list.
 - **Record** (`src/history/record.ts`): written after the story is ready,
   `docs/flow/<yyyy-mm>/<task id>-<slug>.{md,json}`. The analysis ignores this
   directory, so a record written during the next task never shows up as a
@@ -220,5 +222,7 @@ code? Tried on the "discount codes" demo task with Haiku and Sonnet via
   are very common (`return true;`) can inflate the match slightly.
 - History: tasks made before M3 (or before installing the plugin) are not
   reconstructed (by decision).
+- Without a transcript (an old Claude Code, or a task replayed by hand) the
+  story is written from the diffs alone and the asks are left empty.
 - No config file, big-diff collapsing, Mermaid export of the structure graph
   or Nx project graph yet (M4).

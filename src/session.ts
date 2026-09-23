@@ -2,13 +2,16 @@ import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "
 import path from "node:path";
 import { sessionDir } from "./paths.ts";
 
-/** State of the task currently running in a session (between prompt and Stop). */
+/**
+ * State of the task currently running in a session (between prompt and Stop).
+ * The user's message is deliberately not kept: the story is written from the
+ * conversation read from the transcript, which is dropped once it is written.
+ */
 export interface CurrentTask {
   repoRoot: string;
   beforeTree: string;
   baseCommit?: string;
   startedAt: string;
-  prompt: string;
 }
 
 export interface ToolRecord {

@@ -14,8 +14,6 @@ export interface HookInput {
   cwd: string;
   transcript_path?: string;
   hook_event_name?: string;
-  prompt?: string;
-  user_prompt?: string;
   tool_name?: string;
   tool_input?: {
     file_path?: string;
@@ -39,7 +37,6 @@ export function onPrompt(input: HookInput): HookOutput {
     beforeTree: snapshotWorkTree(repoRoot),
     baseCommit: headCommit(repoRoot),
     startedAt: new Date().toISOString(),
-    prompt: input.prompt ?? input.user_prompt ?? "",
   });
   return {};
 }
@@ -86,7 +83,6 @@ export async function onStop(input: HookInput): Promise<HookOutput> {
     repoId,
     repoRoot: current.repoRoot,
     sessionId: input.session_id,
-    prompt: current.prompt,
     startedAt: current.startedAt,
     endedAt: new Date().toISOString(),
     before: current.beforeTree,

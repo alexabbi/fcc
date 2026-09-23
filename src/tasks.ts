@@ -5,12 +5,17 @@ import { fccHome, repoDir, taskDir, tasksDir } from "./paths.ts";
 
 const GRAPH = "graph.json";
 
-/** Write atomically so the server never serves a half-written file. */
+/**
+ * Write atomically so the server never serves a half-written file. The
+ * conversation is stripped here: it lives in memory while the story is being
+ * written and never reaches the disk, in the repo or in the cache.
+ */
 export function writeGraph(graph: FlowGraph): void {
   const dir = taskDir(graph.task.repoId, graph.task.id);
   mkdirSync(dir, { recursive: true });
   const tmp = path.join(dir, `${GRAPH}.${process.pid}.tmp`);
-  writeFileSync(tmp, JSON.stringify(graph));
+  const { conversation, ...stored } = graph;
+  writeFileSync(tmp, JSON.stringify(stored));
   renameSync(tmp, path.join(dir, GRAPH));
 }
 
@@ -26,7 +31,8 @@ export interface TaskSummary {
   repoId: string;
   repoRoot: string;
   id: string;
-  prompt: string;
+  /** Story headline, or a factual fallback: never the user's own words. */
+  headline: string;
   endedAt: string;
   status: FlowGraph["status"];
   stats?: FlowGraph["stats"];
@@ -73,7 +79,7 @@ export function listTasks(): TaskSummary[] {
         repoId,
         repoRoot: g.task.repoRoot,
         id: g.task.id,
-        prompt: g.task.prompt,
+        headline: headlineOf(g),
         endedAt: g.task.endedAt,
         status: g.status,
         stats: g.stats,
@@ -81,6 +87,12 @@ export function listTasks(): TaskSummary[] {
     }
   }
   return summaries.sort((a, b) => b.endedAt.localeCompare(a.endedAt));
+}
+
+function headlineOf(g: FlowGraph): string {
+  if (g.narrative?.status === "ready" && g.narrative.data?.headline) return g.narrative.data.headline;
+  const files = g.stats?.filesChanged ?? 0;
+  return files ? `${files} file${files === 1 ? "" : "s"} changed` : "No visible changes";
 }
 
 function safeReaddir(dir: string): string[] {

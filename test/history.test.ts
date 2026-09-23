@@ -58,7 +58,6 @@ function pendingTask(opts: Partial<FlowGraph["task"]> = {}, repo?: FixtureRepo):
       repoId: `repo${repos.indexOf(repo)}`,
       repoRoot: repo.root,
       sessionId: "session-aaaa-bbbb",
-      prompt: "ok, go",
       startedAt: "2000-01-01T00:00:00Z",
       endedAt: `2026-01-01T10:02:${String(n).padStart(2, "0")}Z`,
       before,
@@ -130,7 +129,7 @@ describe("conversation (S13)", () => {
 });
 
 describe("history record in the repo (S6–S10)", () => {
-  test("Markdown + JSON with the intent, never the raw conversation", async () => {
+  test("Markdown + JSON with the intent, and no trace of what the user typed", async () => {
     const { graph, repo } = pendingTask();
     const g = await runAnalysis(graph.task.repoId, graph.task.id, fakeModel);
     assert.match(g.recordPath!, /^docs\/flow\/2026-01\/.+-prices-are-now-discounted\.md$/);
@@ -145,7 +144,9 @@ describe("history record in the repo (S6–S10)", () => {
       assert.doesNotMatch(text, /ok, go/);
       assert.doesNotMatch(text, new RegExp(repo.root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "no absolute paths");
     }
-    assert.ok(readGraph(graph.task.repoId, graph.task.id)?.conversation?.some((e) => e.text.includes("123-45-6789")), "…but they are in the local cache");
+    const cached = JSON.stringify(readGraph(graph.task.repoId, graph.task.id));
+    assert.doesNotMatch(cached, /123-45-6789/, "…and not in the local cache either, once the story is written");
+    assert.doesNotMatch(cached, /ok, go/);
     assert.ok(Object.keys(JSON.parse(json).fingerprint).includes("src/pricing.ts"));
   });
 

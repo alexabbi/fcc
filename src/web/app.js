@@ -184,7 +184,7 @@ function renderTaskSelect() {
       const opt = document.createElement("option");
       opt.value = `${t.repoId}/${t.id}`;
       const status = t.status === "ready" ? "" : ` · ${t.status}`;
-      opt.textContent = `${formatTime(t.endedAt)} · ${excerpt(t.prompt, 70) || "(no prompt)"}${status}`;
+      opt.textContent = `${formatTime(t.endedAt)} · ${excerpt(t.headline, 70)}${status}`;
       group.append(opt);
     }
     select.append(group);
@@ -490,9 +490,8 @@ function renderOverview() {
   );
   if (t.usedBash) meta.append(el("span", "badge", "ran shell commands"));
   p.append(meta);
-  if (t.prompt) {
-    p.append(el("h3", "", "Prompt"), el("div", "prompt", t.prompt));
-  }
+  const goal = g.narrative?.data?.intent?.goal;
+  if (goal) p.append(el("h3", "", "Goal"), el("div", "prompt", goal));
   if (g.warnings?.length) {
     p.append(el("h3", "", "Notes"));
     const ul = el("ul");

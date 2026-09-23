@@ -61,7 +61,8 @@ describe("hooks end to end", () => {
     const [g] = tasksOf(repo);
     assert.ok(g, "task recorded");
     assert.equal(g.status, "ready");
-    assert.equal(g.task.prompt, "make a return 2");
+    assert.equal("prompt" in g.task, false, "what the user typed is never stored");
+    assert.equal(g.conversation, undefined, "nor is the conversation, once the story is written");
     assert.deepEqual(g.task.claudeFiles, ["src/a.ts"]);
     const ids = g.nodes.map((n) => n.id);
     assert.ok(ids.includes("sym:src/a.ts#b"));
