@@ -10,6 +10,8 @@ const state = {
   graph: null,
   cy: null,
   showContext: true,
+  /** Width the viewer asked for; what is applied may be clamped to the window. */
+  panelWidth: null,
   pollTimer: null,
   view: "story", // "story" (levels 0–1) | "structure" (levels 2–3)
   flowCy: null,
@@ -661,6 +663,82 @@ function renderDiff(text) {
   return box;
 }
 
+// ---------- resizable side panel ----------
+
+const PANEL_MIN = 280;
+const PANEL_DEFAULT = 440;
+const PANEL_KEY = "fcc.panelWidth";
+
+/** Keep the panel usable on any window size, without squashing the graph. */
+function clampPanel(width) {
+  return Math.round(Math.max(PANEL_MIN, Math.min(width, Math.max(PANEL_MIN, window.innerWidth - 360))));
+}
+
+/**
+ * `width` is what the user asked for and is kept as such: a narrow window
+ * only clamps what is applied, so widening the window restores their choice.
+ */
+function setPanelWidth(width, remember = true) {
+  state.panelWidth = Math.round(Math.max(PANEL_MIN, width));
+  const w = clampPanel(width);
+  document.documentElement.style.setProperty("--panel-width", `${w}px`);
+  $("#splitter").setAttribute("aria-valuenow", String(w));
+  if (remember) {
+    try {
+      localStorage.setItem(PANEL_KEY, String(w));
+    } catch {
+      // private window or blocked storage: the width just won't be remembered
+    }
+  }
+  // the graphs own a canvas: it has to be told the container changed
+  state.cy?.resize();
+  state.flowCy?.resize();
+}
+
+function initSplitter() {
+  const splitter = $("#splitter");
+  let stored = null;
+  try {
+    stored = Number(localStorage.getItem(PANEL_KEY)) || null;
+  } catch {
+    stored = null;
+  }
+  setPanelWidth(stored ?? PANEL_DEFAULT, false);
+
+  let frame = 0;
+  splitter.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    splitter.setPointerCapture(e.pointerId);
+    document.body.classList.add("resizing");
+  });
+  splitter.addEventListener("pointermove", (e) => {
+    if (!splitter.hasPointerCapture(e.pointerId)) return;
+    // one update per frame: dragging fires far more often than that
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      setPanelWidth(window.innerWidth - e.clientX);
+    });
+  });
+  const stop = (e) => {
+    if (splitter.hasPointerCapture(e.pointerId)) splitter.releasePointerCapture(e.pointerId);
+    document.body.classList.remove("resizing");
+  };
+  splitter.addEventListener("pointerup", stop);
+  splitter.addEventListener("pointercancel", stop);
+  splitter.addEventListener("dblclick", () => setPanelWidth(PANEL_DEFAULT));
+  splitter.addEventListener("keydown", (e) => {
+    const step = e.shiftKey ? 96 : 24;
+    const current = state.panelWidth ?? PANEL_DEFAULT;
+    if (e.key === "ArrowLeft") setPanelWidth(current + step);
+    else if (e.key === "ArrowRight") setPanelWidth(current - step);
+    else if (e.key === "Home") setPanelWidth(PANEL_DEFAULT);
+    else return;
+    e.preventDefault();
+  });
+  window.addEventListener("resize", () => setPanelWidth(state.panelWidth ?? PANEL_DEFAULT, false));
+}
+
 // ---------- utils ----------
 
 function el(tag, cls = "", text) {
@@ -690,6 +768,7 @@ function formatTime(iso) {
 // ---------- boot ----------
 
 initCy();
+initSplitter();
 $("#task-select").addEventListener("change", (e) => {
   location.hash = taskHash(e.target.value);
 });

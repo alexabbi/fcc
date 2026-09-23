@@ -129,8 +129,33 @@ main { flex: 1; display: flex; min-height: 0; }
 .legend .ln.dashed { border-top-style: dashed; }
 .legend .ln.removed { border-top-color: var(--del); }
 
+.splitter {
+  flex: none;
+  width: 9px;
+  margin-right: -4px;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+  touch-action: none;
+}
+.splitter::after {
+  content: "";
+  position: absolute;
+  inset: 0 4px;
+  background: transparent;
+  transition: background 120ms;
+}
+.splitter:hover::after,
+.splitter:focus-visible::after,
+body.resizing .splitter::after {
+  background: var(--accent);
+}
+.splitter:focus-visible { outline: none; }
+body.resizing { cursor: col-resize; user-select: none; }
+
 .panel {
-  width: 440px;
+  width: var(--panel-width, 440px);
   flex: none;
   border-left: 1px solid var(--border);
   background: var(--surface);
@@ -197,6 +222,7 @@ main { flex: 1; display: flex; min-height: 0; }
   main { flex-direction: column; }
   .canvas { min-height: 55vh; }
   .panel { width: auto; border-left: 0; border-top: 1px solid var(--border); }
+  .splitter { display: none; }
   .legend { display: none; }
 }
 
