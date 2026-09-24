@@ -141,7 +141,7 @@ Requires [Claude Code](https://code.claude.com), git and Node ≥ 18. No `npm
 install`: the plugin ships its own bundle.
 
 ```bash
-claude plugin marketplace add <your-github-user>/fcc
+claude plugin marketplace add alexabbi/fcc
 ```
 
 ```bash
