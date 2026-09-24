@@ -39,24 +39,30 @@ async function apiDelete(path) {
   return res.json();
 }
 
-/** `#/history/<repo>` or `#/<repo>/<task>`. */
+/** `#/history/<repo>`, or `#/<repo>/<task>` with an optional `/story` or `/structure`. */
 function currentRoute() {
-  const [, a, b] = location.hash.split("/");
+  const [, a, b, c] = location.hash.split("/");
   if (a === "history" && b) return { kind: "history", repo: decodeURIComponent(b) };
-  if (a && b) return { kind: "task", key: `${decodeURIComponent(a)}/${decodeURIComponent(b)}` };
+  if (a && b) {
+    const view = c === "structure" || c === "story" ? c : undefined;
+    return { kind: "task", key: `${decodeURIComponent(a)}/${decodeURIComponent(b)}`, view };
+  }
   return null;
 }
 
-function taskHash(key) {
-  return `#/${key.split("/").map(encodeURIComponent).join("/")}`;
+function taskHash(key, view) {
+  return `#/${key.split("/").map(encodeURIComponent).join("/")}${view ? `/${view}` : ""}`;
 }
 
 function route() {
   const r = currentRoute();
   if (r?.kind === "history") showHistory(r.repo);
   else if (r?.kind === "task") {
-    if (r.key !== state.key) loadTask(r.key);
-    else if (state.view === "history") {
+    if (r.key !== state.key) loadTask(r.key, r.view);
+    else if (r.view && r.view !== state.view) {
+      state.view = r.view;
+      renderView();
+    } else if (state.view === "history") {
       state.view = defaultView(state.graph);
       renderView();
     }
@@ -92,7 +98,7 @@ async function refreshTasks() {
   }
 }
 
-async function loadTask(key) {
+async function loadTask(key, wantedView) {
   clearTimeout(state.pollTimer);
   state.key = key;
   renderTaskSelect();
@@ -111,7 +117,7 @@ async function loadTask(key) {
   const signature = `${graph.status}|${graph.narrative?.status}`;
   state.graph = graph;
   state.loadedKey = key;
-  if (isNewTask) state.view = defaultView(graph);
+  if (isNewTask) state.view = wantedView ?? defaultView(graph);
   // Polling re-fetches the same task: only re-render when something progressed.
   if (isNewTask || signature !== state.signature) {
     state.signature = signature;
@@ -136,13 +142,15 @@ function setView(view) {
   if (state.view === "history") {
     if (!state.loadedKey) return;
     state.view = view;
-    history.replaceState(null, "", taskHash(state.loadedKey));
+    history.replaceState(null, "", taskHash(state.loadedKey, view));
     renderView();
     renderOverview();
     return;
   }
   if (state.view === view) return;
   state.view = view;
+  // the view is part of the link, so a page can be shared as it is being read
+  if (state.loadedKey) history.replaceState(null, "", taskHash(state.loadedKey, view));
   renderView();
 }
 
