@@ -10,6 +10,10 @@ const state = {
   graph: null,
   cy: null,
   showContext: true,
+  /** "auto" folds files only on big tasks; "on"/"off" is the viewer's choice. */
+  collapse: "auto",
+  expandedFiles: new Set(),
+  collapsedCount: 0,
   /** Width the viewer asked for; what is applied may be clamped to the window. */
   panelWidth: null,
   pollTimer: null,
@@ -117,7 +121,11 @@ async function loadTask(key, wantedView) {
   const signature = `${graph.status}|${graph.narrative?.status}`;
   state.graph = graph;
   state.loadedKey = key;
-  if (isNewTask) state.view = wantedView ?? defaultView(graph);
+  if (isNewTask) {
+    state.view = wantedView ?? defaultView(graph);
+    state.collapse = "auto";
+    state.expandedFiles.clear();
+  }
   // Polling re-fetches the same task: only re-render when something progressed.
   if (isNewTask || signature !== state.signature) {
     state.signature = signature;
@@ -160,6 +168,7 @@ function renderView() {
   $("#structure-view").hidden = v !== "structure";
   $("#history-view").hidden = v !== "history";
   $("#context-toggle").hidden = v !== "structure";
+  $("#fold").hidden = v !== "structure";
   $("#fit").hidden = v === "history";
   $("#stats").hidden = v === "history";
   for (const b of document.querySelectorAll(".tabs button")) {
@@ -173,12 +182,23 @@ function renderView() {
     renderStory();
   } else {
     state.cy.resize();
-    const shown = `${state.loadedKey}|${state.signature}|${state.showContext}`;
+    const shown = `${state.loadedKey}|${state.signature}|${state.showContext}|${state.collapse}|${[...state.expandedFiles].sort().join()}`;
     if (state.graphRendered !== shown) {
       state.graphRendered = shown;
       renderGraph();
     }
+    updateFoldButton();
   }
+}
+
+/** Header button: fold every file into one node, or open them all. */
+function updateFoldButton() {
+  const b = $("#fold");
+  const folded = state.collapsedCount > 0;
+  b.textContent = folded ? `Unfold ${state.collapsedCount} file${state.collapsedCount === 1 ? "" : "s"}` : "Fold files";
+  b.title = folded
+    ? "Files are folded into single nodes: click one to open it, or unfold them all"
+    : "Fold every file into a single node (large tasks start this way)";
 }
 
 function activeCy() {
@@ -359,7 +379,10 @@ function initCy() {
     boxSelectionEnabled: false,
   });
   const cy = state.cy;
-  cy.on("tap", "node", (e) => select(e.target));
+  cy.on("tap", "node.folded", (e) => toggleFile(e.target.id()));
+  cy.on("tap", "node", (e) => {
+    if (!e.target.hasClass("folded")) select(e.target);
+  });
   cy.on("tap", "edge", (e) => select(e.target));
   cy.on("tap", (e) => {
     if (e.target === cy) {
@@ -390,6 +413,10 @@ function symbolLabel(n) {
   }
 }
 
+/** Above this many symbols the graph opens collapsed to one node per file. */
+const COLLAPSE_ABOVE = 60;
+const EDGE_RANK = { added: 3, removed: 2, unchanged: 1 };
+
 function toElements(g) {
   const packages = g.nodes.filter((n) => n.kind === "package");
   const showPackages = packages.length > 1;
@@ -399,6 +426,19 @@ function toElements(g) {
     const hasChild = new Set(nodes.filter((n) => n.kind === "symbol").map((n) => n.parent));
     nodes = nodes.filter((n) => !(n.kind === "file" && n.status === "context" && !hasChild.has(n.id)));
   }
+  const symbolsOf = new Map();
+  for (const n of nodes) {
+    if (n.kind !== "symbol") continue;
+    if (!symbolsOf.has(n.parent)) symbolsOf.set(n.parent, []);
+    symbolsOf.get(n.parent).push(n);
+  }
+  // A big task is unreadable symbol by symbol: fold each file into one node
+  // until it is opened. `collapsed` is what is folded *now*.
+  const collapsible = state.collapse === "on" || (state.collapse === "auto" && symbolsOf.size > 1 && countSymbols(symbolsOf) > COLLAPSE_ABOVE);
+  const collapsed = new Set(collapsible ? [...symbolsOf.keys()].filter((id) => !state.expandedFiles.has(id)) : []);
+  state.collapsedCount = collapsed.size;
+  if (collapsed.size) nodes = nodes.filter((n) => !(n.kind === "symbol" && collapsed.has(n.parent)));
+
   const ids = new Set(nodes.map((n) => n.id));
   const parents = new Set(nodes.filter((n) => n.kind === "symbol").map((n) => n.parent));
 
@@ -409,18 +449,49 @@ function toElements(g) {
       els.push({ group: "nodes", data: { id: n.id, label: n.label }, classes: "package" });
       continue;
     }
+    const isFolded = collapsed.has(n.id);
     const isLeafFile = n.kind === "file" && !parents.has(n.id);
-    const label = n.kind === "symbol" ? symbolLabel(n) : n.label + (n.attribution === "other" ? "  ·  external" : "");
-    const classes = [n.kind, n.status, isLeafFile ? "leaf" : "", n.attribution ?? "", n.symbolKind ?? ""].join(" ");
+    let label = n.kind === "symbol" ? symbolLabel(n) : n.label;
+    if (n.kind === "file" && n.attribution === "other") label += "  ·  external";
+    if (isFolded) label += `  ▸ ${symbolsOf.get(n.id).length}`;
+    const classes = [n.kind, n.status, isLeafFile || isFolded ? "leaf" : "", isFolded ? "folded" : "", n.attribution ?? "", n.symbolKind ?? ""].join(" ");
     const data = { id: n.id, label, w: Math.max(64, label.length * 7.3 + 26) };
     if (n.parent && (showPackages || n.kind !== "file")) data.parent = n.parent;
     els.push({ group: "nodes", data, classes });
   }
+  // Edges of a folded file are carried by the file node itself.
+  const fold = (id) => {
+    const node = nodeById(id);
+    return node && node.kind === "symbol" && collapsed.has(node.parent) ? node.parent : id;
+  };
+  const edges = new Map();
   for (const e of g.edges) {
-    if (!ids.has(e.source) || !ids.has(e.target)) continue;
+    if (!ids.has(e.source) && !nodeById(e.source)) continue;
+    const source = fold(e.source);
+    const target = fold(e.target);
+    if (source === target || !ids.has(source) || !ids.has(target)) continue;
+    const key = `${source}->${target}`;
+    const kept = edges.get(key);
+    if (!kept || EDGE_RANK[e.status] > EDGE_RANK[kept.status]) edges.set(key, { ...e, source, target, id: key });
+  }
+  for (const e of edges.values()) {
     els.push({ group: "edges", data: { id: e.id, source: e.source, target: e.target }, classes: `${e.kind} ${e.status}` });
   }
   return els;
+}
+
+function countSymbols(symbolsOf) {
+  let n = 0;
+  for (const list of symbolsOf.values()) n += list.length;
+  return n;
+}
+
+/** Open or close one file in the structure view. */
+function toggleFile(fileId) {
+  if (state.expandedFiles.has(fileId)) state.expandedFiles.delete(fileId);
+  else state.expandedFiles.add(fileId);
+  state.graphRendered = null;
+  renderView();
 }
 
 function renderGraph() {
@@ -857,6 +928,12 @@ $("#task-select").addEventListener("change", (e) => {
   location.hash = taskHash(e.target.value);
 });
 $("#fit").addEventListener("click", () => activeCy()?.fit(undefined, 32));
+$("#fold").addEventListener("click", () => {
+  state.collapse = state.collapsedCount > 0 ? "off" : "on";
+  state.expandedFiles.clear();
+  state.graphRendered = null;
+  renderView();
+});
 for (const b of document.querySelectorAll(".tabs button")) b.addEventListener("click", () => setView(b.dataset.view));
 $("#show-context").addEventListener("change", (e) => {
   state.showContext = e.target.checked;

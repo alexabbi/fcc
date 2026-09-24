@@ -89,7 +89,7 @@ describe("narrative", () => {
     const input = buildInput(g);
     assert.ok(input.text.includes('"ref": "s1"'));
     assert.ok(!input.text.includes("sym:"), "graph ids are not sent to the model");
-    assert.ok(input.text.includes("external (shell command"), "attribution is visible to the model");
+    assert.ok(input.text.includes("not an edit tool"), "attribution is visible to the model");
     assert.ok(input.text.includes("The conversation is not available"), "no transcript: the model is told so");
     assert.equal([...input.refs.values()].filter((v) => v.startsWith("file:")).length, 2);
   });

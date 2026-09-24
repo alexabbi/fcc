@@ -13,7 +13,7 @@ Produce:
 - headline: one line saying what the task changed, in product/domain terms.
 - story: 2-4 sentences describing the behavior BEFORE vs AFTER, in domain language. No function or file names.
 - asks: what the developer asked to be done in THIS task (the conversation may also mention future work: leave that out), split into individual asks. For each: done / partial / missing, judged strictly from the diffs, with a short note. Be skeptical: if an ask is not visibly implemented, it is "missing".
-- verify: what the developer should personally check, most important first. Look for: behavior changes for existing callers, changes not made by the agent's edit tools (writtenBy "external"), data/schema changes, unhandled errors and edge cases, changes nobody asked for, missing tests, mismatches with the request. Concrete and short, no generic advice. Empty if there is truly nothing.
+- verify: what the developer should personally check, most important first. Look for: behavior changes for existing callers, data/schema changes, unhandled errors and edge cases, changes nobody asked for, missing tests, mismatches with the request. A file not written by an edit tool is worth raising only when it carries risk on its own (a migration to run, a config or dependency change) or looks unrelated to the task — when the agent ran shell commands, such files are usually its own generated output, not a surprise. Concrete and short, no generic advice. Empty if there is truly nothing.
 - flow: a flowchart of the runtime behavior touched by the task, from the trigger (user action, API call, job…) to the outcome(s). 4-12 steps. Labels in domain language, at most 6 words, no identifiers. Decisions are "decision" steps with labeled outgoing links (e.g. "valid" / "invalid", in the request's language). Mark each step added / modified / removed / unchanged relative to the old behavior; include removed behavior as removed steps when relevant. If the change is not about runtime behavior (config, docs, refactor), show the affected flow at a coarser grain or what the change enables.
 
 Rules: anchors may only contain refs from the input. Every step except trigger/outcome must have at least one anchor pointing to the code that implements it. Never describe behavior you cannot point to. Step ids are short unique strings.`;
@@ -45,7 +45,12 @@ export function buildInput(graph: FlowGraph): NarrativeInput {
       path: f.path,
       status: f.status,
       ...(f.oldPath ? { renamedFrom: f.oldPath } : {}),
-      writtenBy: f.attribution === "claude" ? "agent edit tool" : "external (shell command, the user, or another session)",
+      writtenBy:
+        f.attribution === "claude"
+          ? "agent edit tool"
+          : graph.task.usedBash
+            ? "not an edit tool: a shell command the agent ran (codegen, formatter, migration…), the developer, or another session"
+            : "not an edit tool: the developer or another session",
       // Parsed code files are described by their symbols; only opaque files carry a file diff.
       ...(f.opaque && f.diff ? { diff: cut(f.diff, diffLines) } : {}),
     })),

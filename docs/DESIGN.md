@@ -102,8 +102,10 @@ aliases resolve.
   drawn grey, so a change is never shown floating on its own.
 - **Clusters** are the nearest `package.json` or Nx `project.json`.
 - **Attribution**: a changed file is Claude's when it was written through an
-  edit tool, otherwise it is marked external (a shell command, you, another
-  session) — a useful signal the model is told about.
+  edit tool, otherwise it is marked external — a shell command Claude ran, you
+  editing in parallel, or another session. The model is told which, and told
+  that when Claude ran shell commands those files are usually its own
+  generated output rather than a surprise.
 
 Non-code files become plain file nodes with their diff; lockfiles, build
 output and generated files are excluded.
@@ -175,6 +177,10 @@ cookie it sets for the session; deletions accept the header alone, so no other
 page in the browser can trigger one. It refuses requests whose `Host` is not
 loopback, and it shuts down after 30 idle minutes.
 
+Above 60 changed symbols the structure view opens with each file folded into
+a single node, edges aggregated between files; clicking one opens that file,
+and a header button folds or unfolds everything.
+
 The page is plain HTML and JavaScript with Cytoscape and ELK, no build step.
 It polls while a task is still being analyzed, and the URL carries the task
 and the view so a page can be shared as it is being read.
@@ -221,6 +227,5 @@ and about $0.06 with Sonnet. Hook startup from the bundle: ~25 ms.
 - Tasks from before the plugin was installed are not reconstructed.
 - Without a transcript the story is written from the diffs alone and the asks
   are left empty.
-- Not yet: collapsing very large graphs, a Mermaid export of the structure
-  graph, the full Nx project graph, and a config file for everything that is
-  still environment-only.
+- Not yet: a Mermaid export of the structure graph, the full Nx project graph,
+  and a config file for everything that is still environment-only.

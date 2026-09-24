@@ -310,6 +310,7 @@ body.resizing { cursor: col-resize; user-select: none; }
 .panel code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .panel li .note { margin-left: 6px; }
 .tabs button:disabled { opacity: 0.45; cursor: default; }
+#fold[hidden] { display: none; }
 #stats[hidden], #fit[hidden] { display: none; }
 @media (max-width: 900px) { .hrow { grid-template-columns: 1fr; } .hrow-badges { justify-content: flex-start; } .why-list { grid-template-columns: 1fr; } }
 
