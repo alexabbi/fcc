@@ -191,8 +191,8 @@ touching your index), `PostToolUse` records which files Claude edited, and
 `Stop` snapshots again, then analyzes the two trees with ts-morph and asks the
 model for the story, validating every reference it makes against the graph.
 Tasks are matched to commits by content, so the link survives squash and
-rebase. [docs/DESIGN.md](docs/DESIGN.md) has the architecture and the
-decisions behind it, including the ones that were later revised.
+rebase. [docs/DESIGN.md](docs/DESIGN.md) walks through each step, maps the
+modules, and lists what fcc cannot do.
 
 ## Development
 
