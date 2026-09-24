@@ -92,7 +92,7 @@ touching your index), `PostToolUse` records which files Claude edited, and
 model for the story, validating every reference it makes against the graph.
 Tasks are matched to commits by content, so the link survives squash and
 rebase. See [docs/DESIGN.md](docs/DESIGN.md) for the decisions behind all of
-this, and `docs/flow/` for fcc's own history.
+this — including the ones that were later revised.
 
 ## Development
 

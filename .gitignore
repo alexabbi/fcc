@@ -4,3 +4,6 @@ node_modules/
 
 # throwaway prototypes (see docs/DESIGN.md, P1)
 prototypes/
+
+# fcc's own task reports: useful locally, not part of the published plugin
+docs/flow/

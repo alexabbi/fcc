@@ -1,0 +1,4 @@
+# The bundle is build output: keep it out of language stats and collapse its diffs.
+dist/** linguist-generated=true
+dist/** -diff
+package-lock.json linguist-generated=true
