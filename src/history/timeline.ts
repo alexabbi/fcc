@@ -19,6 +19,8 @@ export interface HistoryItem {
   local: boolean;
   /** `/flow private`: only in the local cache, never in the repo. */
   private: boolean;
+  /** Captured but not explained yet (manual mode). */
+  explained: boolean;
   recordPath?: string;
   link: CommitLink;
   /** Lowercased text for the page's search box. */
@@ -45,22 +47,30 @@ export interface History {
  * explicit feature, else by commit, else by session.
  */
 export function buildHistory(repoId: string, repoRoot: string): History {
-  const byId = new Map<string, { record: HistoryRecord; path?: string; local: boolean; private: boolean }>();
+  const byId = new Map<string, { record: HistoryRecord; path?: string; local: boolean; private: boolean; explained: boolean }>();
   for (const { record, path: p } of readRecords(repoRoot)) {
-    byId.set(record.task.id, { record, path: p, local: false, private: false });
+    byId.set(record.task.id, { record, path: p, local: false, private: false, explained: true });
   }
   for (const g of readRepoGraphs(repoId)) {
-    if (g.status !== "ready" || isEmptyTask(g)) continue;
+    if ((g.status !== "ready" && g.status !== "captured") || isEmptyTask(g)) continue;
     const existing = byId.get(g.task.id);
     if (existing) existing.local = true;
-    else byId.set(g.task.id, { record: buildRecord(g), path: g.recordPath, local: true, private: Boolean(g.task.private) });
+    else {
+      byId.set(g.task.id, {
+        record: buildRecord(g),
+        path: g.recordPath,
+        local: true,
+        private: Boolean(g.task.private),
+        explained: g.status === "ready",
+      });
+    }
   }
 
   const entries = [...byId.values()];
   const earliest = entries.map((e) => e.record.task.startedAt).sort()[0];
   const commits = earliest ? loadCommits(repoRoot, earliest) : [];
 
-  const items: HistoryItem[] = entries.map(({ record: r, path: p, local, private: priv }) => ({
+  const items: HistoryItem[] = entries.map(({ record: r, path: p, local, private: priv, explained }) => ({
     id: r.task.id,
     startedAt: r.task.startedAt,
     endedAt: r.task.endedAt,
@@ -73,6 +83,7 @@ export function buildHistory(repoId: string, repoRoot: string): History {
     verifyHigh: r.verify.filter((v) => v.priority === "high").length,
     local,
     private: priv,
+    explained,
     ...(p ? { recordPath: p } : {}),
     link: linkTask(repoRoot, r.fingerprint ?? {}, r.task.startedAt, commits),
     search: [

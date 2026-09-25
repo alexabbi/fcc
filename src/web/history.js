@@ -109,6 +109,7 @@ function historyRow(repoId, it) {
   if (label) badges.append(el("span", `badge link-${it.link.state}`, label));
   if (it.asksMissing) badges.append(el("span", "badge removed", `${it.asksMissing} ask${it.asksMissing === 1 ? "" : "s"} not done`));
   if (it.verifyHigh) badges.append(el("span", "badge modified", `${it.verifyHigh} to verify`));
+  if (!it.explained) badges.append(el("span", "badge modified", "not explained"));
   if (it.private) badges.append(el("span", "badge", "private"));
   if (!it.local) badges.append(el("span", "badge", "from the repo"));
   row.append(badges);

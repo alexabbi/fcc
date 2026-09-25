@@ -1,6 +1,6 @@
 {
   "name": "fcc",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "After each Claude Code task: a plain-language story of what changed, what to verify, a behavior flowchart anchored to real code, a symbol graph, and a development history kept in your repo.",
   "author": {
     "name": "Alex Abbi"

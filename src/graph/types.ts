@@ -86,7 +86,8 @@ export interface TaskInfo {
 export interface FlowGraph {
   version: 1;
   task: TaskInfo;
-  status: "pending" | "ready" | "error";
+  /** captured: recorded but not explained yet (manual mode). */
+  status: "pending" | "captured" | "ready" | "error";
   error?: string;
   nodes: FlowNode[];
   edges: FlowEdge[];

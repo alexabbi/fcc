@@ -35,13 +35,15 @@ async function api(path) {
   return res.json();
 }
 
-/** Deletions carry the token in a header, so no other page can trigger them. */
-async function apiDelete(path) {
+/** Anything that changes something carries the token in a header, so no other page can trigger it. */
+async function apiSend(method, path) {
   const token = new URLSearchParams(location.search).get("t") ?? "";
-  const res = await fetch(path, { method: "DELETE", headers: { "x-fcc-token": token } });
+  const res = await fetch(path, { method, headers: { "x-fcc-token": token } });
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return res.json();
 }
+
+const apiDelete = (path) => apiSend("DELETE", path);
 
 /** `#/history/<repo>`, or `#/<repo>/<task>` with an optional `/story` or `/structure`. */
 function currentRoute() {
@@ -133,12 +135,21 @@ async function loadTask(key, wantedView) {
     renderOverview();
   }
   const waiting = graph.status === "pending" || graph.narrative?.status === "pending";
+  if (graph.status === "captured") state.signature = signature; // nothing moves until it is asked for
   if (waiting) state.pollTimer = setTimeout(() => loadTask(key), graph.status === "pending" ? 1000 : 2000);
 }
 
 function defaultView(g) {
+  if (g.status === "captured") return "story"; // the story view is where it is asked for
   const s = g.narrative?.status;
   return !s || s === "off" ? "structure" : "story";
+}
+
+/** Ask for a captured task to be explained now, and follow it until it is. */
+async function explainTask(key) {
+  await apiSend("POST", `/api/tasks/${key.split("/").map(encodeURIComponent).join("/")}/explain`);
+  state.signature = null;
+  await loadTask(key);
 }
 
 function setView(view) {

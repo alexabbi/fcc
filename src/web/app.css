@@ -320,4 +320,5 @@ body.resizing { cursor: col-resize; user-select: none; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .actions button:disabled { opacity: 0.5; cursor: default; }
 .actions button.danger { color: var(--del); }
+.story-note button.primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: 7px 14px; }
 .actions button.danger:hover { border-color: var(--del); }

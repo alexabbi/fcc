@@ -160,6 +160,10 @@ a project, and it says so once, the first time you work in a new one:
 ```
 
 From then on, in that project only, each task that changes files gets a story.
+If you would rather decide task by task, `/flow mode manual` keeps the
+snapshots (they are free and silent) but analyzes nothing and calls no model
+until you ask, with `/flow last` or the **Explain this task** button in the
+page. That way you choose *after* seeing the result, not before.
 `/flow on project` writes the choice into the repository instead, turning it
 on for everyone who has it. `/flow off` stops, `/flow forget` also deletes
 everything fcc kept about that project.
@@ -169,6 +173,9 @@ everything fcc kept about that project.
 | Command | Effect |
 |---|---|
 | `/flow on` · `/flow off` | start or stop recording tasks in this project (add `project` to decide for everyone) |
+| `/flow mode manual` | capture tasks but explain them only when asked (`auto` is the default) |
+| `/flow last` | explain the last task |
+| `/flow skip` | throw the last task away entirely |
 | `/flow forget` | stop recording and delete what fcc kept about this project |
 | `/flow` | open the history of the current project |
 | `/flow model haiku` | choose the model that writes the stories (`sonnet` by default, or `opus`, a `claude-…` id, or `off`); add `project` for this repository only |

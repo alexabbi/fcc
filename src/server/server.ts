@@ -8,6 +8,7 @@ import { fccHome, serverInfoPath } from "../paths.ts";
 import { deleteTask, discardRecord } from "../history/discard.ts";
 import { buildHistory, recordToGraph } from "../history/timeline.ts";
 import { listRepos, listTasks, readGraph } from "../tasks.ts";
+import { spawnSelfDetached } from "../spawn.ts";
 import { VERSION } from "../version.ts";
 import { readServerInfo, type ServerInfo } from "./launcher.ts";
 
@@ -92,13 +93,13 @@ function handle(req: IncomingMessage, res: ServerResponse, token: string, port: 
   // DNS-rebinding guard: only answer requests addressed to loopback.
   const host = req.headers.host ?? "";
   if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return send(res, 403, "text/plain", "forbidden host");
-  if (req.method !== "GET" && req.method !== "DELETE") return send(res, 405, "text/plain", "method not allowed");
+  if (req.method !== "GET" && req.method !== "DELETE" && req.method !== "POST") return send(res, 405, "text/plain", "method not allowed");
 
   const cookieName = `fcc_${port}`;
   const queryToken = url.searchParams.get("t");
   // Deletions require the token in the header: a cookie alone could be replayed by another page.
   const presented =
-    req.method === "DELETE"
+    req.method !== "GET"
       ? req.headers["x-fcc-token"]?.toString()
       : (queryToken ?? req.headers["x-fcc-token"]?.toString() ?? readCookie(req, cookieName));
   if (!presented || !safeEqual(presented, token)) return send(res, 401, "text/plain", "missing or invalid token");
@@ -115,6 +116,17 @@ function handle(req: IncomingMessage, res: ServerResponse, token: string, port: 
   if (h) {
     const repo = listRepos().find((r) => r.repoId === decodeURIComponent(h[1]!));
     return repo ? sendJson(res, buildHistory(repo.repoId, repo.root)) : send(res, 404, "text/plain", "unknown repo");
+  }
+
+  const a = /^\/api\/tasks\/([^/]+)\/([^/]+)\/explain$/.exec(url.pathname);
+  if (a && req.method === "POST") {
+    const repoId = decodeURIComponent(a[1]!);
+    const taskId = decodeURIComponent(a[2]!);
+    const graph = readGraph(repoId, taskId);
+    if (!graph) return send(res, 404, "text/plain", "task not found");
+    // The analysis runs detached, exactly as it does after a task in auto mode.
+    spawnSelfDetached(["analyze", repoId, taskId]);
+    return sendJson(res, { ok: true });
   }
 
   const d = /^\/api\/tasks\/([^/]+)\/([^/]+)\/(record|task)$/.exec(url.pathname);

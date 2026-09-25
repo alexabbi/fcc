@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
-import { hasDecision, isProjectEnabled, takeHint } from "./config.ts";
+import { hasDecision, isProjectEnabled, readConfig, takeHint } from "./config.ts";
 import { findRepoRoot, headCommit, snapshotWorkTree } from "./git.ts";
 import type { TaskInfo } from "./graph/types.ts";
 import { repoIdFor } from "./paths.ts";
@@ -106,7 +106,15 @@ export async function onStop(input: HookInput): Promise<HookOutput> {
   };
   // The next task's conversation starts after this one (S13).
   updateSessionMeta(input.session_id, { lastTaskEndedAt: task.endedAt, lastTaskId: task.id, lastRepoId: repoId });
-  writeGraph({ version: 1, task, status: "pending", nodes: [], edges: [], warnings: [] });
+  const { mode } = readConfig(current.repoRoot);
+  writeGraph({ version: 1, task, status: mode === "manual" ? "captured" : "pending", nodes: [], edges: [], warnings: [] });
+
+  // Manual: the snapshots cost nothing and are kept, but nothing is analyzed
+  // or sent to a model until the developer asks for this task.
+  if (mode === "manual") {
+    const n = task.claudeFiles.length;
+    return { systemMessage: `fcc: ${n || "no"} file${n === 1 ? "" : "s"} captured. /flow last to explain this task.` };
+  }
 
   if (process.env.FCC_SYNC === "1") {
     const { runAnalysis } = await import("./analysis-job.ts");

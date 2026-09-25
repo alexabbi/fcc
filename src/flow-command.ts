@@ -11,10 +11,11 @@ import {
   writeConfig,
 } from "./config.ts";
 import { findRepoRoot } from "./git.ts";
-import { discardRecord } from "./history/discard.ts";
+import { deleteTask, discardRecord } from "./history/discard.ts";
 import { repoDir, repoIdFor, tasksDir } from "./paths.ts";
-import { ensureServer, historyUrl } from "./server/launcher.ts";
+import { ensureServer, historyUrl, taskUrl } from "./server/launcher.ts";
 import { readSessionMeta, updateSessionMeta } from "./session.ts";
+import { spawnSelfDetached } from "./spawn.ts";
 import { readGraph, registerRepo } from "./tasks.ts";
 
 const USAGE = `/flow on              start recording tasks in this project (add "project" for everyone)
@@ -23,6 +24,9 @@ const USAGE = `/flow on              start recording tasks in this project (add 
 /flow                 open the development history of this project
 /flow start "name"    group the next tasks under a feature
 /flow end             stop grouping
+/flow mode [auto|manual]  explain every task, or only when asked ("project" to decide for everyone)
+/flow last            explain the last captured task
+/flow skip            throw the last task away entirely
 /flow model [name]    show or set the model: sonnet, haiku, opus, a model id, or off
                       (add "project" to set it for this repository only)
 /flow drop            delete the last task's report so it is never committed
@@ -112,6 +116,47 @@ export async function flowCommand(argv: string[]): Promise<string> {
       const file = writeConfig(scope, { model: lower, llm: current.llm === "off" ? "claude" : current.llm }, repoRoot);
       const envNote = configSource("model", repoRoot) === "env" ? " Note: FCC_MODEL is set in your environment and overrides this." : "";
       return `fcc: stories will be written with ${lower} (${scope} setting, ${file}).${envNote}`;
+    }
+    case "mode": {
+      const repoRoot = findRepoRoot(cwd) ?? undefined;
+      const scope = rest.some((w) => /^(project|repo|--project)$/i.test(w)) ? "project" : "user";
+      const wanted = rest.find((w) => /^(auto|manual)$/i.test(w))?.toLowerCase();
+      if (!wanted) {
+        const { mode } = readConfig(repoRoot);
+        return mode === "manual"
+          ? "fcc: manual — tasks are captured and explained only when you ask (/flow last). Switch with /flow mode auto."
+          : "fcc: auto — every task that changes files is explained when it ends. Switch with /flow mode manual.";
+      }
+      if (scope === "project" && !repoRoot) return "fcc: not inside a git repository, so there is no project to configure.";
+      const file = writeConfig(scope, { mode: wanted as "auto" | "manual" }, repoRoot);
+      return wanted === "manual"
+        ? `fcc: manual (${scope} setting, ${file}). Tasks are still captured, but nothing is analyzed or sent to a model until you run /flow last.`
+        : `fcc: auto (${scope} setting, ${file}). Every task that changes files is explained when it ends.`;
+    }
+    case "last": {
+      needSession();
+      const meta = readSessionMeta(session);
+      if (!meta.lastRepoId || !meta.lastTaskId) return "fcc: no task of this session to explain yet.";
+      const graph = readGraph(meta.lastRepoId, meta.lastTaskId);
+      if (!graph) return "fcc: the last task is no longer in the cache.";
+      if (graph.status === "ready") {
+        const server = await ensureServer();
+        return server
+          ? `fcc: that task is already explained → ${taskUrl(server, meta.lastRepoId, meta.lastTaskId)}`
+          : "fcc: that task is already explained, but the viewer did not start.";
+      }
+      spawnSelfDetached(["analyze", meta.lastRepoId, meta.lastTaskId]);
+      const server = await ensureServer();
+      return server
+        ? `fcc: explaining the last task (about a minute) → ${taskUrl(server, meta.lastRepoId, meta.lastTaskId)}`
+        : "fcc: explaining the last task; the viewer did not start (see ~/.claude/flow/fcc.log).";
+    }
+    case "skip": {
+      needSession();
+      const meta = readSessionMeta(session);
+      if (!meta.lastRepoId || !meta.lastTaskId) return "fcc: no task of this session to skip.";
+      const result = deleteTask(meta.lastRepoId, meta.lastTaskId);
+      return `fcc: ${result.ok ? "the last task was thrown away: nothing is kept about it." : result.message}`;
     }
     case "drop": {
       needSession();

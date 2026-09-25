@@ -5,10 +5,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, beforeEach, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { hasDecision, isProjectEnabled } from "../src/config.ts";
+import { hasDecision, isProjectEnabled, readConfig } from "../src/config.ts";
 import { flowCommand } from "../src/flow-command.ts";
 import { repoIdFor } from "../src/paths.ts";
-import { listTasks } from "../src/tasks.ts";
+import { buildHistory } from "../src/history/timeline.ts";
+import { listTasks, readGraph } from "../src/tasks.ts";
 import { FixtureRepo } from "./helpers.ts";
 
 const BIN = fileURLToPath(new URL("../bin/fcc.ts", import.meta.url));
@@ -97,5 +98,52 @@ describe("a project must be turned on first", () => {
     assert.equal(isProjectEnabled(repo.root), false);
     assert.equal(hasDecision(repo.root), false, "back to never having been asked");
     assert.ok(existsSync(repo.root), "the repository itself is untouched");
+  });
+});
+
+describe("manual mode: capture now, explain if asked", () => {
+  let repo: FixtureRepo;
+  beforeEach(async () => {
+    repo = new FixtureRepo({ "src/a.ts": "export function a() { return 1; }\n" });
+    repos.push(repo);
+    await flowCommand(["--session", "m", "--cwd", repo.root, "on"]);
+    await flowCommand(["--session", "m", "--cwd", repo.root, "mode", "manual", "project"]);
+  });
+
+  test("a task is captured, nothing is analyzed, and the hook says how to ask", () => {
+    const base = { session_id: "m1", cwd: repo.root };
+    hook("prompt", { ...base, prompt: "change a" });
+    repo.write({ "src/a.ts": "export function a() { return 2; }\n" });
+    hook("tool", { ...base, tool_name: "Edit", tool_input: { file_path: "src/a.ts" } });
+    const out = hook("stop", base);
+
+    assert.match(out, /1 file captured/);
+    assert.match(out, /\/flow last/);
+    const [task] = tasksOf(repo);
+    assert.equal(task?.status, "captured");
+    assert.match(task!.headline, /Not explained yet/);
+    const graph = readGraph(repoIdFor(repo.root), task!.id)!;
+    assert.equal(graph.nodes.length, 0, "no analysis ran");
+    assert.equal(graph.narrative, undefined, "and no model was called");
+    assert.equal(graph.recordPath, undefined, "so nothing was written in the repository");
+  });
+
+  test("a captured task still shows up in the history, marked as not explained", () => {
+    const base = { session_id: "m2", cwd: repo.root };
+    hook("prompt", { ...base, prompt: "change a" });
+    repo.write({ "src/a.ts": "export function a() { return 3; }\n" });
+    hook("tool", { ...base, tool_name: "Edit", tool_input: { file_path: "src/a.ts" } });
+    hook("stop", base);
+
+    const h = buildHistory(repoIdFor(repo.root), repo.root);
+    assert.equal(h.count, 1);
+    assert.equal(h.groups[0]?.items[0]?.explained, false);
+  });
+
+  test("auto stays the default everywhere else", async () => {
+    const other = new FixtureRepo({ "b.ts": "export const b = 1;\n" });
+    repos.push(other);
+    assert.equal(readConfig(other.root).mode, "auto");
+    assert.match(await flowCommand(["--session", "m", "--cwd", other.root, "mode"]), /auto/);
   });
 });

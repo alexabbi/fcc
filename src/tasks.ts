@@ -97,6 +97,10 @@ export function isEmptyTask(g: FlowGraph): boolean {
 
 function headlineOf(g: FlowGraph): string {
   if (g.narrative?.status === "ready" && g.narrative.data?.headline) return g.narrative.data.headline;
+  if (g.status === "captured") {
+    const n = g.task.claudeFiles.length;
+    return `Not explained yet — ${n || "no"} file${n === 1 ? "" : "s"}`;
+  }
   const files = g.stats?.filesChanged ?? 0;
   return files ? `${files} file${files === 1 ? "" : "s"} changed` : "No visible changes";
 }

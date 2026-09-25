@@ -34,6 +34,16 @@ who has it; otherwise the developer's own answer, kept per repository path in
 first turn in an undecided repository prints one line saying fcc is installed
 but asleep, and that line is never shown for that repository again.
 
+## Auto or manual
+
+Capturing a task costs a snapshot (~0.1 s) and nothing else, so it always
+happens in an enabled project. Explaining it costs seconds of analysis and
+about $0.06 of model time, so it is the part that can wait: in `manual` mode
+the task is written with status `captured` and the hook prints how to ask for
+it; `/flow last`, or the button in the page, runs exactly the same detached
+analysis that `auto` runs by itself. Deciding afterwards is deliberate — before
+the task you do not yet know whether its story will be worth having.
+
 ## The pipeline
 
 ```

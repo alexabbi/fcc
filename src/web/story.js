@@ -1,5 +1,5 @@
 "use strict";
-/* global cytoscape, state, el, $, nodeById, symbolLabel, renderDiff, colors, setView, focusNode */
+/* global cytoscape, state, el, $, nodeById, symbolLabel, renderDiff, colors, setView, focusNode, explainTask */
 
 // Levels 0–1: the story of the task and its behavior flow, anchored to code.
 
@@ -21,6 +21,30 @@ function renderStory() {
   }
   if (g.status === "error") {
     box.append(storyNote("The analysis failed", g.error ?? "", false));
+    return;
+  }
+  if (g.status === "captured") {
+    const files = g.task.claudeFiles.length;
+    const note = storyNote(
+      "Captured, not explained yet",
+      `This project is in manual mode: the ${files || "changed"} file${files === 1 ? "" : "s"} of this task were recorded, but nothing has been analyzed or sent to a model. Ask for it when this task is worth a story.`,
+      false,
+    );
+    const b = el("button", "primary", "Explain this task");
+    b.type = "button";
+    b.onclick = async () => {
+      b.disabled = true;
+      b.textContent = "Explaining…";
+      try {
+        await explainTask(state.key);
+      } catch (err) {
+        b.disabled = false;
+        b.textContent = "Explain this task";
+        alert(`fcc: ${err.message ?? err}`);
+      }
+    };
+    note.append(b);
+    box.append(note);
     return;
   }
 

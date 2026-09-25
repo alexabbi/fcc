@@ -14,9 +14,14 @@ export interface FccConfig {
   llm: "claude" | "api" | "off";
   /** "sonnet" (default), "haiku", "opus", or a full model id. */
   model: string;
+  /**
+   * "auto": every task is explained as soon as it ends.
+   * "manual": tasks are captured (free, silent) and explained only when asked.
+   */
+  mode: "auto" | "manual";
 }
 
-export const DEFAULT_CONFIG: FccConfig = { llm: "claude", model: "sonnet" };
+export const DEFAULT_CONFIG: FccConfig = { llm: "claude", model: "sonnet", mode: "auto" };
 
 /** Per-project decisions kept in the user file: repo path -> on/off. */
 interface UserConfig extends FccConfig {
@@ -91,7 +96,12 @@ export function readConfig(repoRoot?: string): FccConfig {
   const env = process.env;
   if (env.FCC_LLM) merged.llm = normalizeLlm(env.FCC_LLM);
   if (env.FCC_MODEL) merged.model = env.FCC_MODEL;
-  return { llm: normalizeLlm(merged.llm), model: String(merged.model || DEFAULT_CONFIG.model) };
+  if (env.FCC_MODE) merged.mode = env.FCC_MODE === "manual" ? "manual" : "auto";
+  return {
+    llm: normalizeLlm(merged.llm),
+    model: String(merged.model || DEFAULT_CONFIG.model),
+    mode: merged.mode === "manual" ? "manual" : "auto",
+  };
 }
 
 /** Where a value comes from, to tell the user why their choice is being ignored. */

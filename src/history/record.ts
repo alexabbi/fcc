@@ -49,6 +49,7 @@ export function buildRecord(graph: FlowGraph): HistoryRecord {
   const symbols = graph.nodes.filter(
     (x): x is SymbolNode => x.kind === "symbol" && (x.status !== "context" || anchored.has(x.id)),
   );
+  const captured = graph.status === "captured";
   return {
     fcc: 1,
     task: {
@@ -61,7 +62,7 @@ export function buildRecord(graph: FlowGraph): HistoryRecord {
       ...(n ? { model: graph.narrative?.model } : {}),
     },
     // Without a story (LLM off or failed) the record stays factual: no raw prompt (S10).
-    headline: n?.headline || `${files.length} file${files.length === 1 ? "" : "s"} changed`,
+    headline: n?.headline || (captured ? `Not explained yet — ${t.claudeFiles.length} file(s)` : `${files.length} file${files.length === 1 ? "" : "s"} changed`),
     story: n?.story ?? "",
     intent: n?.intent ?? { goal: "", decisions: [], rejected: [] },
     asks: n?.asks ?? [],
