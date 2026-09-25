@@ -203,6 +203,12 @@ npm run typecheck
 npm run build     # bundles dist/ (commit it: plugins install without npm)
 ```
 
+While changing fcc, load it in place with `claude --plugin-dir /path/to/fcc`
+(plus `npm run build` and `/reload-plugins`). An **installed** copy is a git
+clone of the marketplace source pinned to a version, so updating it means:
+commit and push, bump the version in `.claude-plugin/plugin.json`, then
+`claude plugin marketplace update fcc && claude plugin update fcc@fcc`.
+
 Sources run directly on Node ≥ 22.18 (`node bin/fcc.ts …`); the bundle runs on
 Node ≥ 18. Environment variables, which override the config files: `FCC_LLM`
 (`claude` default, `api`, `off`), `FCC_MODEL`, `FCC_HOME` (state dir),
