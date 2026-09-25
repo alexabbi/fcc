@@ -6,6 +6,7 @@ import path from "node:path";
 import { after, beforeEach, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import type { FlowGraph } from "../src/graph/types.ts";
+import { setProjectEnabled } from "../src/config.ts";
 import { repoIdFor } from "../src/paths.ts";
 import { readGraph } from "../src/tasks.ts";
 import { FixtureRepo } from "./helpers.ts";
@@ -46,6 +47,7 @@ describe("hooks end to end", () => {
   beforeEach(() => {
     repo = new FixtureRepo({ "src/a.ts": "export function a() { return 1; }\n" });
     repos.push(repo);
+    setProjectEnabled(repo.root, true, "user"); // fcc only records where it was turned on
     session++;
   });
 

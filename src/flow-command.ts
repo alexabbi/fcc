@@ -1,13 +1,26 @@
+import { readdirSync, rmSync } from "node:fs";
 import path from "node:path";
-import { configSource, DEFAULT_CONFIG, MODEL_CHOICES, readConfig, writeConfig } from "./config.ts";
+import {
+  configSource,
+  DEFAULT_CONFIG,
+  forgetProject,
+  isProjectEnabled,
+  MODEL_CHOICES,
+  readConfig,
+  setProjectEnabled,
+  writeConfig,
+} from "./config.ts";
 import { findRepoRoot } from "./git.ts";
 import { discardRecord } from "./history/discard.ts";
-import { repoIdFor } from "./paths.ts";
+import { repoDir, repoIdFor, tasksDir } from "./paths.ts";
 import { ensureServer, historyUrl } from "./server/launcher.ts";
 import { readSessionMeta, updateSessionMeta } from "./session.ts";
 import { readGraph, registerRepo } from "./tasks.ts";
 
-const USAGE = `/flow                 open the development history of this project
+const USAGE = `/flow on              start recording tasks in this project (add "project" for everyone)
+/flow off             stop recording here
+/flow forget          stop recording and delete everything fcc kept about this project
+/flow                 open the development history of this project
 /flow start "name"    group the next tasks under a feature
 /flow end             stop grouping
 /flow model [name]    show or set the model: sonnet, haiku, opus, a model id, or off
@@ -32,9 +45,30 @@ export async function flowCommand(argv: string[]): Promise<string> {
   };
 
   switch (sub.toLowerCase()) {
+    case "on":
+    case "off": {
+      const repoRoot = findRepoRoot(cwd);
+      if (!repoRoot) return "fcc: this folder is not a git repository, so there is nothing to record.";
+      const scope = rest.some((w) => /^(project|repo|--project)$/i.test(w)) ? "project" : "user";
+      const on = sub.toLowerCase() === "on";
+      const file = setProjectEnabled(repoRoot, on, scope);
+      const who = scope === "project" ? "for everyone who has this repository" : "for you";
+      return on
+        ? `fcc: recording tasks in ${path.basename(repoRoot)} ${who} (${file}). The next task you run here gets a story.`
+        : `fcc: no longer recording in ${path.basename(repoRoot)} ${who} (${file}). What it already recorded is kept; /flow forget deletes it.`;
+    }
+    case "forget": {
+      const repoRoot = findRepoRoot(cwd);
+      if (!repoRoot) return "fcc: this folder is not a git repository.";
+      const { deleted } = forgetRepo(repoRoot);
+      return `fcc: forgot ${path.basename(repoRoot)} — ${deleted} task(s) deleted and recording turned off. Reports already committed in the repository are untouched.`;
+    }
     case "": {
       const repoRoot = findRepoRoot(cwd);
       if (!repoRoot) return "fcc: this folder is not a git repository, so there is no history to show.";
+      if (!isProjectEnabled(repoRoot)) {
+        return `fcc: not active in ${path.basename(repoRoot)}, so there is nothing recorded yet. Run /flow on to start.`;
+      }
       const repoId = repoIdFor(repoRoot);
       registerRepo(repoId, repoRoot);
       const server = await ensureServer();
@@ -99,6 +133,20 @@ export async function flowCommand(argv: string[]): Promise<string> {
     default:
       return `fcc: unknown option "${sub}".\n${USAGE}`;
   }
+}
+
+/** Delete everything fcc kept about a repository, and forget the decision. */
+function forgetRepo(repoRoot: string): { deleted: number } {
+  const repoId = repoIdFor(repoRoot);
+  let deleted = 0;
+  try {
+    deleted = readdirSync(tasksDir(repoId)).length;
+  } catch {
+    deleted = 0;
+  }
+  rmSync(repoDir(repoId), { recursive: true, force: true });
+  forgetProject(repoRoot);
+  return { deleted };
 }
 
 /** Take the session's last task out of the repo, if its record was written. */

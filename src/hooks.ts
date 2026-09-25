@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
+import { hasDecision, isProjectEnabled, takeHint } from "./config.ts";
 import { findRepoRoot, headCommit, snapshotWorkTree } from "./git.ts";
 import type { TaskInfo } from "./graph/types.ts";
 import { repoIdFor } from "./paths.ts";
@@ -32,6 +33,14 @@ const WRITE_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 export function onPrompt(input: HookInput): HookOutput {
   const repoRoot = findRepoRoot(input.cwd);
   if (!repoRoot) return {};
+  if (!isProjectEnabled(repoRoot)) {
+    // Say it once per repository, then never again: a plugin that records
+    // nothing and says nothing looks broken, one that nags is worse.
+    if (!hasDecision(repoRoot) && takeHint(repoRoot)) {
+      return { systemMessage: "fcc is installed but not active in this project. Run /flow on to have it explain each task here." };
+    }
+    return {};
+  }
   beginTask(input.session_id, {
     repoRoot,
     beforeTree: snapshotWorkTree(repoRoot),

@@ -148,16 +148,28 @@ claude plugin marketplace add alexabbi/fcc
 claude plugin install fcc@fcc
 ```
 
-Pick the `user` scope for every project, or `local` for just this one. To try
-it without installing: `claude --plugin-dir /path/to/fcc`. Later:
-`claude plugin update fcc@fcc`, `claude plugin uninstall fcc@fcc`.
+Pick the `user` scope so it is available everywhere, or `local` for one
+project. To try it without installing: `claude --plugin-dir /path/to/fcc`.
+Later: `claude plugin update fcc@fcc`, `claude plugin uninstall fcc@fcc`.
 
-Then ask Claude to change some code and open the link it prints.
+**Installing it does not start it.** fcc stays asleep until you turn it on in
+a project, and it says so once, the first time you work in a new one:
+
+```bash
+/flow on
+```
+
+From then on, in that project only, each task that changes files gets a story.
+`/flow on project` writes the choice into the repository instead, turning it
+on for everyone who has it. `/flow off` stops, `/flow forget` also deletes
+everything fcc kept about that project.
 
 ## Commands
 
 | Command | Effect |
 |---|---|
+| `/flow on` · `/flow off` | start or stop recording tasks in this project (add `project` to decide for everyone) |
+| `/flow forget` | stop recording and delete what fcc kept about this project |
 | `/flow` | open the history of the current project |
 | `/flow model haiku` | choose the model that writes the stories (`sonnet` by default, or `opus`, a `claude-…` id, or `off`); add `project` for this repository only |
 | `/flow start "Discount codes"` | group the next tasks under a feature |

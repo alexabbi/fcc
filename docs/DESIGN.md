@@ -24,10 +24,21 @@ supporting path is shown as "inferred". The list of things to verify matters
 more than the diagram: reading less code only works if the tool says where
 code *should* be read.
 
+## Turned on per project
+
+Installing the plugin is not consent to record every repository the developer
+opens: the hooks return immediately unless fcc was turned on for that one.
+A project file (`<repo>/.claude/flow.json`, `enabled`) decides for everyone
+who has it; otherwise the developer's own answer, kept per repository path in
+`~/.claude/flow/config.json`, applies; with neither, the answer is no. The
+first turn in an undecided repository prints one line saying fcc is installed
+but asleep, and that line is never shown for that repository again.
+
 ## The pipeline
 
 ```
-UserPromptSubmit ─► snapshot work tree ─► ~/.claude/flow/sessions/<session>/current.json
+UserPromptSubmit ─► (nothing unless this project is turned on)
+                    snapshot work tree ─► ~/.claude/flow/sessions/<session>/current.json
 PostToolUse      ─► append {tool, files} ─► …/tools.jsonl
 Stop             ─► snapshot again; if Claude used tools and the tree changed:
                     write tasks/<id>/graph.json {status: pending}
