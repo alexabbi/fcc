@@ -8,6 +8,7 @@ import { fccHome, serverInfoPath } from "../paths.ts";
 import { deleteTask, discardRecord } from "../history/discard.ts";
 import { buildHistory, recordToGraph } from "../history/timeline.ts";
 import { listRepos, listTasks, readGraph } from "../tasks.ts";
+import { VERSION } from "../version.ts";
 import { readServerInfo, type ServerInfo } from "./launcher.ts";
 
 const DEFAULT_PORT = 47291;
@@ -75,7 +76,7 @@ export function startServer(): void {
   });
   server.on("listening", () => {
     port = (server.address() as AddressInfo).port;
-    const info: ServerInfo = { port, token, pid: process.pid };
+    const info: ServerInfo = { port, token, pid: process.pid, version: VERSION };
     mkdirSync(fccHome(), { recursive: true });
     writeFileSync(serverInfoPath(), JSON.stringify(info), { mode: 0o600 });
     touch();
@@ -105,7 +106,7 @@ function handle(req: IncomingMessage, res: ServerResponse, token: string, port: 
     res.setHeader("Set-Cookie", `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/`);
   }
 
-  if (url.pathname === "/health") return sendJson(res, { ok: true });
+  if (url.pathname === "/health") return sendJson(res, { ok: true, version: VERSION });
   if (url.pathname === "/api/tasks") return sendJson(res, listTasks());
 
   if (url.pathname === "/api/repos") return sendJson(res, listRepos());

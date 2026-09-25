@@ -74,7 +74,8 @@ export function listTasks(): TaskSummary[] {
   for (const repoId of safeReaddir(reposRoot)) {
     for (const taskId of safeReaddir(tasksDir(repoId))) {
       const g = readGraph(repoId, taskId);
-      if (!g) continue;
+      // A turn whose changes were all filtered out has nothing to show.
+      if (!g || isEmptyTask(g)) continue;
       summaries.push({
         repoId,
         repoRoot: g.task.repoRoot,
@@ -87,6 +88,11 @@ export function listTasks(): TaskSummary[] {
     }
   }
   return summaries.sort((a, b) => b.endedAt.localeCompare(a.endedAt));
+}
+
+/** Analyzed, but nothing visible came out of it. */
+export function isEmptyTask(g: FlowGraph): boolean {
+  return g.status === "ready" && g.nodes.length === 0;
 }
 
 function headlineOf(g: FlowGraph): string {

@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { FileNode, FlowGraph, SymbolNode } from "../graph/types.ts";
-import { readRepoGraphs } from "../tasks.ts";
+import { isEmptyTask, readRepoGraphs } from "../tasks.ts";
 import { linkTask, loadCommits, type CommitLink } from "./commits.ts";
 import { buildRecord, historyDir, readRecords, type HistoryRecord } from "./record.ts";
 
@@ -50,7 +50,7 @@ export function buildHistory(repoId: string, repoRoot: string): History {
     byId.set(record.task.id, { record, path: p, local: false, private: false });
   }
   for (const g of readRepoGraphs(repoId)) {
-    if (g.status !== "ready") continue;
+    if (g.status !== "ready" || isEmptyTask(g)) continue;
     const existing = byId.get(g.task.id);
     if (existing) existing.local = true;
     else byId.set(g.task.id, { record: buildRecord(g), path: g.recordPath, local: true, private: Boolean(g.task.private) });

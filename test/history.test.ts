@@ -14,7 +14,7 @@ import { buildHistory, recordToGraph } from "../src/history/timeline.ts";
 import type { LlmRequest } from "../src/narrative/llm.ts";
 import { buildInput } from "../src/narrative/prompt.ts";
 import { readSessionMeta, updateSessionMeta } from "../src/session.ts";
-import { readGraph, writeGraph } from "../src/tasks.ts";
+import { listTasks, readGraph, writeGraph } from "../src/tasks.ts";
 import { FixtureRepo } from "./helpers.ts";
 
 const home = mkdtempSync(path.join(tmpdir(), "fcc-home-"));
@@ -277,5 +277,42 @@ describe("deleting a report (it must never be committed)", () => {
 
   test("deleting an unknown task says so instead of throwing", () => {
     assert.deepEqual(discardRecord("nope", "nope"), { ok: false, message: "Task not found." });
+  });
+});
+
+describe("tasks with nothing to show", () => {
+  test("a turn whose changes were all filtered out stays out of the lists", async () => {
+    const repo = new FixtureRepo({ "src/a.ts": "export const a = 1;\n" });
+    repos.push(repo);
+    const before = snapshotWorkTree(repo.root);
+    // only excluded files: a lockfile and build output
+    repo.write({ "package-lock.json": '{"v":2}\n', "dist/bundle.js": "console.log(1)\n" });
+    const graph: FlowGraph = {
+      version: 1,
+      task: {
+        id: "20260925-120000-empty",
+        repoId: "empty-repo",
+        repoRoot: repo.root,
+        sessionId: "s",
+        startedAt: "2026-01-01T00:00:00Z",
+        endedAt: "2026-01-01T00:00:10Z",
+        before,
+        after: snapshotWorkTree(repo.root),
+        claudeFiles: [],
+        usedBash: true,
+      },
+      status: "pending",
+      nodes: [],
+      edges: [],
+      warnings: [],
+    };
+    writeGraph(graph);
+    const done = await runAnalysis("empty-repo", graph.task.id, fakeModel);
+
+    assert.equal(done.nodes.length, 0, "nothing survived the filters");
+    assert.equal(done.narrative?.status, "off", "no model call for an empty task");
+    assert.equal(done.recordPath, undefined, "and no record in the repo");
+    assert.equal(buildHistory("empty-repo", repo.root).count, 0, "it does not clutter the timeline");
+    assert.equal(listTasks().some((t) => t.id === graph.task.id), false, "nor the task list");
   });
 });
