@@ -207,26 +207,42 @@ function activeCy() {
 
 // ---------- header ----------
 
+/** The project being looked at: from the open task, the open history, or the newest task. */
+function currentRepoId() {
+  return state.graph?.task.repoId ?? state.historyRepo ?? state.tasks[0]?.repoId ?? null;
+}
+
+/**
+ * One project at a time: the task list holds this project's tasks only, and
+ * the project picker appears beside it when the cache holds more than one.
+ */
 function renderTaskSelect() {
+  const repoId = currentRepoId();
+  const repos = new Map();
+  for (const t of state.tasks) if (!repos.has(t.repoId)) repos.set(t.repoId, basename(t.repoRoot));
+
+  const repoSelect = $("#repo-select");
+  repoSelect.hidden = repos.size < 2;
+  repoSelect.replaceChildren();
+  for (const [id, name] of repos) {
+    const opt = document.createElement("option");
+    opt.value = id;
+    opt.textContent = name;
+    repoSelect.append(opt);
+  }
+  if (repoId && repos.has(repoId)) repoSelect.value = repoId;
+
   const select = $("#task-select");
   select.replaceChildren();
-  const byRepo = new Map();
   for (const t of state.tasks) {
-    if (!byRepo.has(t.repoId)) byRepo.set(t.repoId, []);
-    byRepo.get(t.repoId).push(t);
+    if (t.repoId !== repoId) continue;
+    const opt = document.createElement("option");
+    opt.value = `${t.repoId}/${t.id}`;
+    const status = t.status === "ready" ? "" : ` · ${t.status}`;
+    opt.textContent = `${formatTime(t.endedAt)} · ${excerpt(t.headline, 70)}${status}`;
+    select.append(opt);
   }
-  for (const [, tasks] of byRepo) {
-    const group = document.createElement("optgroup");
-    group.label = basename(tasks[0].repoRoot);
-    for (const t of tasks) {
-      const opt = document.createElement("option");
-      opt.value = `${t.repoId}/${t.id}`;
-      const status = t.status === "ready" ? "" : ` · ${t.status}`;
-      opt.textContent = `${formatTime(t.endedAt)} · ${excerpt(t.headline, 70)}${status}`;
-      group.append(opt);
-    }
-    select.append(group);
-  }
+  select.hidden = select.childElementCount === 0;
   if (state.key) select.value = state.key;
 }
 
@@ -926,6 +942,10 @@ initCy();
 initSplitter();
 $("#task-select").addEventListener("change", (e) => {
   location.hash = taskHash(e.target.value);
+});
+// Switching project lands on its history: that is the view that is about a project.
+$("#repo-select").addEventListener("change", (e) => {
+  location.hash = `#/history/${encodeURIComponent(e.target.value)}`;
 });
 $("#fit").addEventListener("click", () => activeCy()?.fit(undefined, 32));
 $("#fold").addEventListener("click", () => {
