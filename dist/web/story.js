@@ -24,6 +24,10 @@ function renderStory() {
     return;
   }
   if (g.status === "captured") {
+    if (state.explaining === state.key) {
+      box.append(storyNote("Explaining this task…", "Reading the change and writing the story. This usually takes under a minute; the page updates by itself.", false, "pending"));
+      return;
+    }
     const files = g.task.claudeFiles.length;
     const note = storyNote(
       "Captured, not explained yet",

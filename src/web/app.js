@@ -19,6 +19,8 @@ const state = {
   pollTimer: null,
   view: "story", // "story" (levels 0–1) | "structure" (levels 2–3)
   flowCy: null,
+  /** Task whose analysis was just asked for, so the page follows it. */
+  explaining: null,
   /** Resolves when the structure layout has finished (ELK is async). */
   graphReady: Promise.resolve(),
   /** What the structure view currently shows, to avoid re-running the layout. */
@@ -134,8 +136,11 @@ async function loadTask(key, wantedView) {
     renderView();
     renderOverview();
   }
-  const waiting = graph.status === "pending" || graph.narrative?.status === "pending";
-  if (graph.status === "captured") state.signature = signature; // nothing moves until it is asked for
+  // A captured task never changes on its own, so it is polled only while the
+  // analysis we just asked for is running.
+  if (graph.status !== "captured" && state.explaining === key) state.explaining = null;
+  const waiting =
+    graph.status === "pending" || graph.narrative?.status === "pending" || (graph.status === "captured" && state.explaining === key);
   if (waiting) state.pollTimer = setTimeout(() => loadTask(key), graph.status === "pending" ? 1000 : 2000);
 }
 
@@ -148,6 +153,7 @@ function defaultView(g) {
 /** Ask for a captured task to be explained now, and follow it until it is. */
 async function explainTask(key) {
   await apiSend("POST", `/api/tasks/${key.split("/").map(encodeURIComponent).join("/")}/explain`);
+  state.explaining = key;
   state.signature = null;
   await loadTask(key);
 }
