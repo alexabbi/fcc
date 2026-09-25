@@ -1,5 +1,5 @@
 "use strict";
-/* global state, el, $, api, renderView, formatTime, renderStats */
+/* global state, el, $, api, renderView, renderTaskSelect, formatTime */
 
 // The project timeline (S11, S14): features, commits and sessions, newest first.
 
@@ -16,6 +16,7 @@ async function showHistory(repoId, quiet = false) {
   clearTimeout(state.pollTimer);
   state.view = "history";
   state.historyRepo = repoId;
+  renderTaskSelect(); // the task list follows the project being shown
   if (!quiet) {
     state.history = null;
     renderView();
